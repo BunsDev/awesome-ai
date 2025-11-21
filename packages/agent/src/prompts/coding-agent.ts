@@ -1,4 +1,4 @@
-export const CODING_AGENT_SYSTEM_PROMPT = `
+const CODING_AGENT_SYSTEM_PROMPT = `
 You are a coding agent that helps users with software engineering tasks. Use the instructions below to assist the user.
 
 # Core Identity
