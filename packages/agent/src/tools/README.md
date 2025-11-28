@@ -140,22 +140,24 @@ Performs search and replace operations within files with fuzzy matching.
 
 ## Bash Tool
 
-Executes shell commands with output capture.
+Executes shell commands with real-time output streaming.
 
 ### Current Features
+- **Real-time output streaming** - Yields output as it's produced (throttled to 100ms intervals)
 - Combined stdout/stderr capture
 - Configurable timeout (default 1 min, max 10 min)
 - Output truncation (30KB limit)
 - Requires `description` parameter for clarity
 - `needsApproval` flag for user confirmation
+- **Shell detection** - Auto-detects shell (zsh on macOS, bash on Linux, cmd on Windows)
+- **Process tree killing** - Graceful termination (SIGTERM → 200ms wait → SIGKILL)
+- **Detached process groups** - Kills entire process tree on Unix, taskkill /t on Windows
+- **Timeout validation** - Validates timeout parameter, constrains to max 10 minutes
 
 ### Potential Improvements
 - [ ] **Command parsing** - Parse bash commands with tree-sitter for better understanding
 - [ ] **Granular permissions** - Allow/deny/ask for specific commands (e.g., `rm *`, `git push`)
-- [ ] **Real-time output streaming** - Stream output as it's produced instead of waiting for completion
-- [ ] **Process tree killing** - Properly kill child processes on timeout (SIGTERM → SIGKILL)
 - [ ] **External directory detection** - Warn when commands reference paths outside project
-- [ ] **Shell detection** - Auto-detect and use appropriate shell (zsh, bash, etc.)
 
 ---
 
