@@ -1,9 +1,9 @@
-import { blue, cyan, green, red, yellow } from "kleur"
+import kleur from "kleur"
 
 export const highlighter = {
-	error: (text: string) => red(text),
-	warn: (text: string) => yellow(text),
-	info: (text: string) => blue(text),
-	success: (text: string) => green(text),
-	dim: (text: string) => cyan(text),
+	error: (text: string) => kleur.red(text),
+	warn: (text: string) => kleur.yellow(text),
+	info: (text: string) => kleur.blue(text),
+	success: (text: string) => kleur.green(text),
+	dim: (text: string) => kleur.cyan(text),
 }
