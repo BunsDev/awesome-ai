@@ -4,6 +4,7 @@
 	"type": "module",
 	"scripts": {
 		"build": "tsc",
+		"build:registry": "node --experimental-strip-types scripts/build-registry.ts",
 		"dev": "tsc --watch",
 		"test": "vitest run",
 		"test:watch": "vitest"
@@ -22,7 +23,7 @@
 		"zod": "catalog:"
 	},
 	"devDependencies": {
-		"@types/node": "^20",
+		"@types/node": "^22",
 		"@types/unzipper": "^0.10.10",
 		"typescript": "catalog:",
 		"vitest": "catalog:"

@@ -1,0 +1,15 @@
+{
+	"name": "@awesome-ai/agents",
+	"homepage": "https://awesome-ai.com",
+	"items": [
+		{
+			"name": "coding-agent",
+			"type": "registry:agent",
+			"title": "Coding Agent",
+			"description": "Coding Agent - an AI agent",
+			"dependencies": [
+				"ai"
+			]
+		}
+	]
+}

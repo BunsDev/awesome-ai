@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"ai": "node ../packages/cli/dist/index.js"
+		"awesome-ai": "node ../../packages/cli/dist/index.js"
 	},
 	"dependencies": {
 		"ai": "catalog:",
