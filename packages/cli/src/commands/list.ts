@@ -10,6 +10,7 @@ import { handleError } from "@/src/utils/handle-error"
 const listOptionsSchema = z.object({
 	cwd: z.string(),
 	type: z.enum(["agents", "tools", "prompts"]).optional(),
+	registry: z.string().optional(),
 })
 
 export const list = new Command()
@@ -24,11 +25,17 @@ export const list = new Command()
 		"-t, --type <type>",
 		"the type of item to list (agents, tools, prompts)",
 	)
+	.option(
+		"-r, --registry <registry>",
+		"the registry to list from (default: @awesome-ai)",
+		"@awesome-ai",
+	)
 	.action(async (opts) => {
 		try {
 			const options = listOptionsSchema.parse({
 				cwd: path.resolve(opts.cwd),
 				type: opts.type,
+				registry: opts.registry,
 			})
 
 			await loadEnvFiles(options.cwd)
@@ -43,7 +50,7 @@ export const list = new Command()
 			}
 
 			const type = options.type || "agents"
-			const registry = await getRegistry("@awesome-ai", type, {
+			const registry = await getRegistry(options.registry || "@awesome-ai", type, {
 				config,
 			})
 

@@ -63,7 +63,7 @@ export async function runInit(options: z.infer<typeof initOptionsSchema>) {
 
 	const config = existingConfig
 		? await promptForMinimalConfig(existingConfig, options)
-		: await promptForConfig()
+		: await promptForConfig(options)
 
 	if (!options.yes) {
 		const { proceed } = await prompts({
@@ -95,7 +95,21 @@ export async function runInit(options: z.infer<typeof initOptionsSchema>) {
 	return await resolveConfigPaths(options.cwd, config)
 }
 
-async function promptForConfig() {
+async function promptForConfig(opts: z.infer<typeof initOptionsSchema>) {
+	// Skip prompts if defaults flag is set
+	if (opts.defaults) {
+		return rawConfigSchema.parse({
+			$schema: "https://awesome-ai.com/schema.json",
+			tsx: true,
+			aliases: {
+				agents: "@/agents",
+				tools: "@/tools",
+				prompts: "@/prompts",
+			},
+			registries: BUILTIN_REGISTRIES,
+		})
+	}
+
 	logger.info("")
 	const options = await prompts([
 		{
@@ -130,22 +144,37 @@ async function promptForConfig() {
 
 	return rawConfigSchema.parse({
 		$schema: "https://awesome-ai.com/schema.json",
-		tsx: options.typescript,
+		tsx: options.typescript ?? true,
 		aliases: {
-			agents: options.agents,
-			tools: options.tools,
-			prompts: options.prompts,
+			agents: options.agents ?? "@/agents",
+			tools: options.tools ?? "@/tools",
+			prompts: options.prompts ?? "@/prompts",
 		},
 		registries: BUILTIN_REGISTRIES,
 	})
 }
 
 async function promptForMinimalConfig(
-	defaultConfig: z.infer<typeof rawConfigSchema>,
+	existingConfig: z.infer<typeof rawConfigSchema>,
 	opts: z.infer<typeof initOptionsSchema>,
 ) {
+	// If --defaults is passed with --force, use default values
+	if (opts.defaults && opts.force) {
+		return rawConfigSchema.parse({
+			$schema: "https://awesome-ai.com/schema.json",
+			tsx: true,
+			aliases: {
+				agents: "@/agents",
+				tools: "@/tools",
+				prompts: "@/prompts",
+			},
+			registries: BUILTIN_REGISTRIES,
+		})
+	}
+
+	// If --defaults without --force, keep existing config
 	if (opts.defaults) {
-		return defaultConfig
+		return existingConfig
 	}
 
 	const options = await prompts([

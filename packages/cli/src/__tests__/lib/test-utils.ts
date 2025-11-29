@@ -1,8 +1,7 @@
-import { execa, type ExecaError, type Result } from "execa"
+import { execa, type ExecaError } from "execa"
 import { promises as fs } from "fs"
 import { tmpdir } from "os"
 import path from "path"
-import { afterEach } from "vitest"
 
 const CLI_PATH = path.resolve(__dirname, "../../../dist/index.js")
 
@@ -25,9 +24,6 @@ interface CLIResult {
 	stderr: string
 	exitCode: number
 }
-
-// Track all created test projects for cleanup
-const testProjects: TestProject[] = []
 
 /**
  * Create an isolated test project in a temporary directory
@@ -109,7 +105,6 @@ export async function createTestProject(
 		}
 	}
 
-	testProjects.push(project)
 	return project
 }
 
@@ -118,17 +113,20 @@ export async function createTestProject(
  */
 export async function runCLI(
 	args: string[],
-	options: { cwd?: string; env?: Record<string, string> } = {},
+	options: { cwd?: string; env?: Record<string, string>; timeout?: number } = {},
 ): Promise<CLIResult> {
 	try {
 		const result = await execa("node", [CLI_PATH, ...args], {
 			cwd: options.cwd,
+			timeout: options.timeout ?? 5000, // 5 second timeout by default
 			env: {
 				...process.env,
 				...options.env,
 				// Disable colors for easier testing
 				NO_COLOR: "1",
 				FORCE_COLOR: "0",
+				// Run in CI mode to skip interactive prompts
+				CI: "true",
 			},
 			reject: false,
 		})
@@ -136,25 +134,14 @@ export async function runCLI(
 		return {
 			stdout: result.stdout,
 			stderr: result.stderr,
-			exitCode: result.exitCode,
+			exitCode: result.exitCode ?? 0,
 		}
 	} catch (error) {
 		const execaError = error as ExecaError
 		return {
-			stdout: execaError.stdout ?? "",
-			stderr: execaError.stderr ?? "",
+			stdout: String(execaError.stdout ?? ""),
+			stderr: String(execaError.stderr ?? ""),
 			exitCode: execaError.exitCode ?? 1,
 		}
 	}
 }
-
-/**
- * Cleanup all test projects after each test
- */
-afterEach(async () => {
-	for (const project of testProjects) {
-		await project.cleanup()
-	}
-	testProjects.length = 0
-})
-

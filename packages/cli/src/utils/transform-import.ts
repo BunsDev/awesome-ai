@@ -10,7 +10,9 @@ const project = new Project({
 
 async function createTempSourceFile(filename: string) {
 	const dir = await fs.mkdtemp(path.join(tmpdir(), "awesome-ai-"))
-	return path.join(dir, filename)
+	// Always use .ts extension for temp files to ensure proper parsing
+	const baseName = path.basename(filename, path.extname(filename))
+	return path.join(dir, `${baseName}.ts`)
 }
 
 export type TransformOpts = {
@@ -20,15 +22,32 @@ export type TransformOpts = {
 	isRemote?: boolean
 }
 
-export async function transformImports(opts: TransformOpts): Promise<string> {
-	const tempFile = await createTempSourceFile(opts.filename)
-	const sourceFile = project.createSourceFile(tempFile, opts.raw, {
-		scriptKind: ScriptKind.TSX,
-	})
+function getScriptKind(filename: string): ScriptKind {
+	const ext = path.extname(filename).toLowerCase()
+	switch (ext) {
+		case ".tsx":
+		case ".jsx":
+			return ScriptKind.TSX
+		case ".ts":
+		case ".js":
+			// Use TS for JS files so import parsing works correctly
+			return ScriptKind.TS
+		default:
+			return ScriptKind.Unknown
+	}
+}
 
-	if (![".tsx", ".ts", ".jsx", ".js"].includes(sourceFile.getExtension())) {
+export async function transformImports(opts: TransformOpts): Promise<string> {
+	const ext = path.extname(opts.filename).toLowerCase()
+	if (![".tsx", ".ts", ".jsx", ".js"].includes(ext)) {
 		return opts.raw
 	}
+
+	const scriptKind = getScriptKind(opts.filename)
+	const tempFile = await createTempSourceFile(opts.filename)
+	const sourceFile = project.createSourceFile(tempFile, opts.raw, {
+		scriptKind,
+	})
 
 	for (const specifier of sourceFile.getImportStringLiterals()) {
 		const updated = updateImportAliases(

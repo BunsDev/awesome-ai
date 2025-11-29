@@ -11,6 +11,7 @@ const searchOptionsSchema = z.object({
 	cwd: z.string(),
 	query: z.string().optional(),
 	type: z.enum(["agents", "tools", "prompts"]).optional(),
+	registry: z.string().optional(),
 })
 
 export const search = new Command()
@@ -26,12 +27,18 @@ export const search = new Command()
 		"-t, --type <type>",
 		"the type of item to search (agents, tools, prompts)",
 	)
+	.option(
+		"-r, --registry <registry>",
+		"the registry to search from (default: @awesome-ai)",
+		"@awesome-ai",
+	)
 	.action(async (opts) => {
 		try {
 			const options = searchOptionsSchema.parse({
 				cwd: path.resolve(opts.cwd),
 				query: opts.query,
 				type: opts.type,
+				registry: opts.registry,
 			})
 
 			await loadEnvFiles(options.cwd)
@@ -46,7 +53,7 @@ export const search = new Command()
 			}
 
 			const type = options.type || "agents"
-			const registry = await getRegistry("@awesome-ai", type, {
+			const registry = await getRegistry(options.registry || "@awesome-ai", type, {
 				config,
 			})
 
