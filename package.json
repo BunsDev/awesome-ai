@@ -6,10 +6,11 @@
 		"dev": "turbo run dev",
 		"lint": "turbo run lint",
 		"test": "turbo run test",
-		"format": "biome check"
+		"format": "biome check",
+		"build:registry": "pnpm --filter=@awesome-ai/registry build:registry"
 	},
 	"devDependencies": {
-		"@biomejs/biome": "^2.2.5",
+		"@biomejs/biome": "latest",
 		"turbo": "latest"
 	},
 	"packageManager": "pnpm@10.6.5"

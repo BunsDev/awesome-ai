@@ -1,0 +1,31 @@
+{
+	"name": "@awesome-ai/registry",
+	"version": "0.0.0",
+	"type": "module",
+	"scripts": {
+		"build": "tsc",
+		"build:registry": "node --experimental-strip-types scripts/build-registry.ts",
+		"dev": "tsc --watch",
+		"test": "vitest run",
+		"test:watch": "vitest"
+	},
+	"exports": {
+		".": {
+			"types": "./dist/index.d.ts",
+			"default": "./dist/index.js"
+		}
+	},
+	"dependencies": {
+		"ai": "catalog:",
+		"diff": "^8.0.2",
+		"unzipper": "^0.12.3",
+		"uuid": "^13.0.0",
+		"zod": "catalog:"
+	},
+	"devDependencies": {
+		"@types/node": "^22",
+		"@types/unzipper": "^0.10.10",
+		"typescript": "catalog:",
+		"vitest": "catalog:"
+	}
+}

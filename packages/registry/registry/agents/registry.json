@@ -1,0 +1,25 @@
+{
+	"name": "@awesome-ai/agents",
+	"homepage": "https://awesome-ai.com",
+	"items": [
+		{
+			"name": "coding-agent",
+			"type": "registry:agent",
+			"title": "Coding Agent",
+			"description": "Coding Agent - an AI agent",
+			"dependencies": [
+				"ai"
+			],
+			"registryDependencies": [
+				"prompts:coding-agent",
+				"tools:bash",
+				"tools:edit",
+				"tools:glob",
+				"tools:grep",
+				"tools:list",
+				"tools:read",
+				"tools:write"
+			]
+		}
+	]
+}
