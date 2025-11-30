@@ -19,6 +19,7 @@
 				"tools:grep",
 				"tools:list",
 				"tools:read",
+				"tools:todo",
 				"tools:write"
 			]
 		},
@@ -37,7 +38,8 @@
 				"tools:glob",
 				"tools:grep",
 				"tools:list",
-				"tools:read"
+				"tools:read",
+				"tools:todo"
 			]
 		}
 	]

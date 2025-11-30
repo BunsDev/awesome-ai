@@ -1,7 +1,6 @@
 import { Experimental_Agent as Agent, type LanguageModel } from "ai"
 import { summarizeMessages } from "@/agents/lib/context"
 import {
-	type EnvironmentContext,
 	type EnvironmentOptions,
 	getEnvironmentContext,
 } from "@/agents/lib/environment"
@@ -18,6 +17,7 @@ import { globTool } from "@/tools/glob"
 import { grepTool } from "@/tools/grep"
 import { listTool } from "@/tools/list"
 import { readTool } from "@/tools/read"
+import { createTodoTools, type TodoStorage } from "@/tools/todo"
 
 const BASH_PERMISSIONS: Record<string, Permission> = {
 	...FILE_READ_COMMANDS,
@@ -31,21 +31,26 @@ export interface AgentSettings {
 	model: LanguageModel
 	cwd?: string
 	environment?: EnvironmentOptions
+	todoStorage?: TodoStorage
 }
 
-export async function createAgent({ model, cwd, environment }: AgentSettings) {
-	const env: EnvironmentContext = await getEnvironmentContext({
-		cwd,
-		...environment,
-	})
+export async function createAgent({
+	model,
+	cwd,
+	environment,
+	todoStorage,
+}: AgentSettings) {
+	const env = await getEnvironmentContext({ cwd, ...environment })
 	const instructions = getSystemPrompt(env)
-	// Read-only tools only - no write or edit
+	const { todoRead, todoWrite } = createTodoTools(todoStorage)
 	const tools = {
 		read: readTool,
 		bash: createBashTool(BASH_PERMISSIONS),
 		list: listTool,
 		grep: grepTool,
 		glob: globTool,
+		todoRead,
+		todoWrite,
 	}
 
 	const agent = new Agent({

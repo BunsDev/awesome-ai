@@ -47,6 +47,13 @@
 			"dependencies": ["ai", "zod"]
 		},
 		{
+			"name": "todo",
+			"type": "registry:tool",
+			"title": "Todo",
+			"description": "Todo tool for AI agents",
+			"dependencies": ["ai", "zod"]
+		},
+		{
 			"name": "write",
 			"type": "registry:tool",
 			"title": "Write",
