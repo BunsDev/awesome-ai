@@ -19,6 +19,7 @@ import { globTool } from "@/tools/glob"
 import { grepTool } from "@/tools/grep"
 import { listTool } from "@/tools/list"
 import { readTool } from "@/tools/read"
+import { createTodoTools, type TodoStorage } from "@/tools/todo"
 import { createWriteTool } from "@/tools/write"
 
 const BASH_PERMISSIONS: Record<string, Permission> = {
@@ -34,11 +35,18 @@ export interface AgentSettings {
 	model: LanguageModel
 	cwd?: string
 	environment?: EnvironmentOptions
+	todoStorage?: TodoStorage
 }
 
-export async function createAgent({ model, cwd, environment }: AgentSettings) {
+export async function createAgent({
+	model,
+	cwd,
+	environment,
+	todoStorage,
+}: AgentSettings) {
 	const env = await getEnvironmentContext({ cwd, ...environment })
 	const instructions = getSystemPrompt(env)
+	const { todoRead, todoWrite } = createTodoTools(todoStorage)
 	const tools = {
 		read: readTool,
 		write: createWriteTool(),
@@ -47,6 +55,8 @@ export async function createAgent({ model, cwd, environment }: AgentSettings) {
 		list: listTool,
 		grep: grepTool,
 		glob: globTool,
+		todoRead,
+		todoWrite,
 	}
 
 	const agent = new Agent({
