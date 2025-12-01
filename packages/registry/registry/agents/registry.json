@@ -41,6 +41,23 @@
 				"tools:read",
 				"tools:todo"
 			]
+		},
+		{
+			"name": "research-agent",
+			"type": "registry:agent",
+			"title": "Research Agent",
+			"description": "Research Agent - an AI agent",
+			"dependencies": ["ai"],
+			"registryDependencies": [
+				"agents:lib/context",
+				"agents:lib/environment",
+				"prompts:research-agent",
+				"tools:glob",
+				"tools:grep",
+				"tools:list",
+				"tools:read",
+				"tools:todo"
+			]
 		}
 	]
 }

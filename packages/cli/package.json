@@ -28,6 +28,7 @@
 		"prompts": "^2.4.2",
 		"ts-morph": "^27.0.2",
 		"tsconfig-paths": "^4.2.0",
+		"tui": "workspace:*",
 		"zod": "^4.1.13"
 	},
 	"devDependencies": {

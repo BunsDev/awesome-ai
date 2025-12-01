@@ -13,6 +13,12 @@
 			"type": "registry:prompt",
 			"title": "Planning Agent",
 			"description": "You are a planning agent that helps users analyze code and create implementation plans. You can expl..."
+		},
+		{
+			"name": "research-agent",
+			"type": "registry:prompt",
+			"title": "Research Agent",
+			"description": "You are a research agent that answers questions about codebases. You explore, analyze, and explain c..."
 		}
 	]
 }
