@@ -1,5 +1,6 @@
 import { Command } from "commander"
 import path from "path"
+import { runTui } from "tui"
 import { z } from "zod"
 import { handleError } from "@/src/utils/handle-error"
 import { logger } from "@/src/utils/logger"
@@ -27,10 +28,6 @@ export const run = new Command()
 
 			const agentName = options.agent || "coding-agent"
 
-			logger.info(`Starting TUI with agent: ${agentName}`)
-
-			// Dynamically import and run the TUI
-			const { runTui } = await import("tui")
 			await runTui(agentName)
 		} catch (error) {
 			logger.break()

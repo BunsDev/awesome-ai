@@ -4,7 +4,7 @@
 	"private": true,
 	"type": "module",
 	"scripts": {
-		"awesome-ai": "node ../../packages/cli/dist/index.js"
+		"awesome-ai": "AWESOME_AI_REGISTRY_URL=https://raw.githubusercontent.com/vercel/awesome-ai/tui/packages/registry/registry bun ../../packages/cli/src/index.ts"
 	},
 	"dependencies": {
 		"ai": "catalog:",

@@ -129,6 +129,12 @@ function Chat({ agentName }: { agentName: string }) {
 	)
 
 	useKeyboard((key) => {
+		// Ctrl+C to exit
+		if (key.name === "c" && key.ctrl) {
+			exitTui()
+			return
+		}
+
 		if (key.name === "f12" || key.name === "`") {
 			setShowDebug(!showDebugAtom.get())
 			return
@@ -287,16 +293,24 @@ function Chat({ agentName }: { agentName: string }) {
 	)
 }
 
+let renderer: Awaited<ReturnType<typeof createCliRenderer>> | null = null
+
 export async function runTui(agentName: string = "coding-agent") {
-	const renderer = await createCliRenderer({
-		exitOnCtrlC: true,
+	renderer = await createCliRenderer({
+		exitOnCtrlC: false,
 	})
 
 	createRoot(renderer).render(<Chat agentName={agentName} />)
 }
 
-// Allow running directly
-const args = process.argv.slice(2)
-const agentArg = args[0] || "coding-agent"
+export function exitTui() {
+	if (renderer) renderer.destroy()
+	process.exit(0)
+}
 
-runTui(agentArg)
+// Run when executed directly
+if (import.meta.main) {
+	const args = process.argv.slice(2)
+	const agentArg = args[0] || "coding-agent"
+	runTui(agentArg)
+}

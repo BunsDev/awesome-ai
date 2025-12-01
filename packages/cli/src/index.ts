@@ -1,4 +1,4 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 import { Command } from "commander"
 import { add } from "@/src/commands/add"
 import { diff } from "@/src/commands/diff"
