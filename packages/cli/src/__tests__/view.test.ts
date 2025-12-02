@@ -179,8 +179,8 @@ describe("view command", () => {
 		expect(result.exitCode).toBe(0)
 		const output = JSON.parse(result.stdout)
 		expect(output[0].registryDependencies).toBeDefined()
-		expect(output[0].registryDependencies).toContain("test-tool")
-		expect(output[0].registryDependencies).toContain("test-prompt")
+		expect(output[0].registryDependencies).toContain("tools:test-tool")
+		expect(output[0].registryDependencies).toContain("prompts:test-prompt")
 	})
 
 	it("sends custom headers to registry", async () => {

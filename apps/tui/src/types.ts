@@ -2,6 +2,7 @@ export interface Message {
 	role: "user" | "assistant" | "system"
 	content: string
 	timestamp: string
+	thinking?: string // Optional thinking/reasoning content (for assistant messages)
 }
 
 export interface Command {

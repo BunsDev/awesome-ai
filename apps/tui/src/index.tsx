@@ -1,15 +1,12 @@
 import { useAtom } from "@lfades/atom"
-import {
-	createCliRenderer,
-	type InputRenderable,
-	type ScrollBoxRenderable,
-} from "@opentui/core"
+import { createCliRenderer, type ScrollBoxRenderable } from "@opentui/core"
 import { createRoot, useKeyboard } from "@opentui/react"
 import { useCallback, useEffect, useRef } from "react"
 import { COMMANDS } from "./commands"
 import {
 	commandFilterAtom,
 	debugLogsAtom,
+	inputAtom,
 	isLoadingAtom,
 	messagesAtom,
 	selectedCommandAtom,
@@ -33,7 +30,6 @@ function Chat({ agentName }: { agentName: string }) {
 	const [showCommands, setShowCommands] = useAtom(showCommandsAtom)
 	const [commandFilter, setCommandFilter] = useAtom(commandFilterAtom)
 	const [selectedCommand, setSelectedCommand] = useAtom(selectedCommandAtom)
-	const inputRef = useRef<InputRenderable>(null)
 	const commandScrollRef = useRef<ScrollBoxRenderable>(null)
 
 	// Filter commands based on input
@@ -63,6 +59,16 @@ function Chat({ agentName }: { agentName: string }) {
 			setSelectedCommand(filteredCommands.length - 1)
 		}
 	}, [filteredCommands.length, selectedCommand, setSelectedCommand])
+
+	// Refocus input when debug overlay closes (it steals focus with its scrollbox)
+	const prevShowDebug = useRef(showDebug)
+	useEffect(() => {
+		const input = inputAtom.get()
+		if (prevShowDebug.current && !showDebug && input) {
+			input.focus()
+		}
+		prevShowDebug.current = showDebug
+	}, [showDebug])
 
 	const debugLog = useCallback((...args: unknown[]) => {
 		const msg = args
@@ -117,9 +123,10 @@ function Chat({ agentName }: { agentName: string }) {
 	const selectCommand = useCallback(
 		(index: number) => {
 			const command = filteredCommands[index]
-			if (command && inputRef.current) {
-				inputRef.current.value = `${command.name} `
-				inputRef.current.cursorPosition = command.name.length + 1
+			const input = inputAtom.get()
+			if (command && input) {
+				input.setText(`${command.name} `)
+				input.gotoBufferEnd()
 				setShowCommands(false)
 				setCommandFilter("")
 				setSelectedCommand(0)
@@ -135,13 +142,12 @@ function Chat({ agentName }: { agentName: string }) {
 			return
 		}
 
-		if (key.name === "f12" || key.name === "`") {
+		if (key.name === "d" && (key.meta || key.option)) {
 			setShowDebug(!showDebugAtom.get())
 			return
 		}
 
-		// ? to toggle shortcuts panel
-		if (key.name === "?") {
+		if (key.name === "s" && (key.meta || key.option)) {
 			showShortcutsAtom.set(!showShortcutsAtom.get())
 			return
 		}
@@ -171,10 +177,7 @@ function Chat({ agentName }: { agentName: string }) {
 			const isLoading = isLoadingAtom.get()
 			if (!value.trim() || isLoading) return
 
-			if (inputRef.current) {
-				inputRef.current.value = ""
-				inputRef.current.cursorPosition = 0
-			}
+			inputAtom.get()?.setText("")
 
 			setShowCommands(false)
 			setCommandFilter("")
@@ -241,10 +244,7 @@ function Chat({ agentName }: { agentName: string }) {
 	const handleCloseCommands = useCallback(() => {
 		setShowCommands(false)
 		setCommandFilter("")
-		if (inputRef.current) {
-			inputRef.current.value = ""
-			inputRef.current.cursorPosition = 0
-		}
+		inputAtom.get()?.setText("")
 	}, [setShowCommands, setCommandFilter])
 
 	const handleFilterChange = useCallback(
@@ -274,7 +274,6 @@ function Chat({ agentName }: { agentName: string }) {
 			{showCommands && <CommandPalette scrollRef={commandScrollRef} />}
 
 			<InputArea
-				inputRef={inputRef}
 				stateRef={stateRef}
 				onSubmit={handleSubmit}
 				onInputChange={handleInputChange}

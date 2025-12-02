@@ -3,7 +3,8 @@ import { colors } from "../theme"
 
 const SHORTCUTS = {
 	navigation: [
-		{ action: "Toggle shortcuts panel", keys: ["?"] },
+		{ action: "Toggle shortcuts panel", keys: ["⌥ S"] },
+		{ action: "Toggle debug overlay", keys: ["⌥ D"] },
 		{ action: "Previous command in history", keys: ["↑"] },
 		{ action: "Next command in history", keys: ["↓"] },
 		{ action: "Autocomplete command", keys: ["Tab"] },
@@ -48,7 +49,7 @@ export function ShortcutsPanel() {
 	const { width, height } = useTerminalDimensions()
 
 	const panelHeight =
-		SHORTCUTS.navigation.length + SHORTCUTS.commands.length + 6
+		SHORTCUTS.navigation.length + SHORTCUTS.commands.length + 8
 	const panelWidth = 50
 
 	return (
@@ -68,6 +69,11 @@ export function ShortcutsPanel() {
 				flexDirection: "column",
 			}}
 		>
+			<text>
+				<span fg={colors.green}>Shortcuts</span>
+				<span fg={colors.muted}> (⌥ S or Esc to close)</span>
+			</text>
+			<box style={{ height: 1 }} />
 			<text fg={colors.muted}>NAVIGATION</text>
 			<box style={{ height: 1 }} />
 			{SHORTCUTS.navigation.map((shortcut) => (

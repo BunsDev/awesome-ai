@@ -9,9 +9,6 @@
 			"description": "Coding Agent - an AI agent",
 			"dependencies": ["ai"],
 			"registryDependencies": [
-				"agents:lib/context",
-				"agents:lib/environment",
-				"agents:lib/permissions",
 				"prompts:coding-agent",
 				"tools:bash",
 				"tools:edit",
@@ -30,9 +27,6 @@
 			"description": "Planning Agent - an AI agent",
 			"dependencies": ["ai"],
 			"registryDependencies": [
-				"agents:lib/context",
-				"agents:lib/environment",
-				"agents:lib/permissions",
 				"prompts:planning-agent",
 				"tools:bash",
 				"tools:glob",
@@ -49,8 +43,6 @@
 			"description": "Research Agent - an AI agent",
 			"dependencies": ["ai"],
 			"registryDependencies": [
-				"agents:lib/context",
-				"agents:lib/environment",
 				"prompts:research-agent",
 				"tools:glob",
 				"tools:grep",

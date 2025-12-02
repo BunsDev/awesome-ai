@@ -1,9 +1,9 @@
 import { useAtom } from "@lfades/atom"
-import type { InputRenderable } from "@opentui/core"
-import type { MutableRefObject, RefObject } from "react"
+import type { MutableRefObject } from "react"
+import { useState } from "react"
 import { colors } from "../theme"
 import type { Command } from "../types"
-import { showCommandsAtom } from "./atoms"
+import { inputAtom, showCommandsAtom } from "./atoms"
 
 interface CommandState {
 	showCommands: boolean
@@ -12,7 +12,6 @@ interface CommandState {
 }
 
 interface InputAreaProps {
-	inputRef: RefObject<InputRenderable | null>
 	stateRef: MutableRefObject<CommandState>
 	onSubmit: (value: string) => void
 	onInputChange: (value: string) => void
@@ -23,8 +22,16 @@ interface InputAreaProps {
 	onFilterChange: (value: string) => void
 }
 
+// Custom key bindings: Enter = submit, Shift+Enter = newline
+const chatKeyBindings = [
+	{ name: "return", action: "submit" as const },
+	{ name: "return", shift: true, action: "newline" as const },
+]
+
+// Max lines before scrolling within textarea
+const MAX_INPUT_LINES = 10
+
 export function InputArea({
-	inputRef,
 	stateRef,
 	onSubmit,
 	onInputChange,
@@ -35,31 +42,61 @@ export function InputArea({
 	onFilterChange,
 }: InputAreaProps) {
 	const [showCommands] = useAtom(showCommandsAtom)
+	const [lineCount, setLineCount] = useState(1)
+
+	const handleSubmit = () => {
+		const input = inputAtom.get()
+		if (input) {
+			const value = input.plainText
+			onSubmit(value)
+			setLineCount(1) // Reset after submit
+		}
+	}
+
+	const updateLineCount = () => {
+		const input = inputAtom.get()
+		if (input) {
+			const text = input.plainText
+			const lines = Math.max(1, (text.match(/\n/g) || []).length + 1)
+			setLineCount(Math.min(lines, MAX_INPUT_LINES))
+		}
+	}
+
+	// Height = lines + 2 for border
+	const boxHeight = lineCount + 2
 
 	return (
 		<box
 			style={{
-				height: 3,
-				marginLeft: 1,
-				marginRight: 1,
-				marginBottom: 0,
+				height: boxHeight,
 				border: true,
 				borderStyle: "single",
 				borderColor: showCommands ? colors.green : colors.border,
 				paddingLeft: 1,
 				flexDirection: "row",
+				alignItems: "flex-start",
 			}}
 		>
-			<text fg={colors.green} style={{ width: 2 }}>
+			<text fg={colors.green} style={{ width: 2, height: 1 }}>
 				❯
 			</text>
-			<input
-				ref={inputRef}
-				placeholder="enter command ..."
+			<textarea
+				ref={(ref) => {
+					inputAtom.set(ref)
+				}}
+				placeholder="enter command ... (shift+enter for new line)"
 				focused
-				onSubmit={onSubmit}
-				onInput={onInputChange}
+				keyBindings={chatKeyBindings}
+				onSubmit={handleSubmit}
 				onKeyDown={(key) => {
+					// Track input changes and line count after key processing
+					queueMicrotask(() => {
+						const input = inputAtom.get()
+						if (input) {
+							onInputChange(input.plainText)
+							updateLineCount()
+						}
+					})
 					const {
 						showCommands: isShowing,
 						filteredCommands: cmds,
@@ -92,14 +129,10 @@ export function InputArea({
 					// Delete word with option/alt + backspace
 					if (key.name === "backspace" && (key.option || key.meta)) {
 						key.preventDefault()
-						if (inputRef.current) {
-							const value = inputRef.current.value
-							const lastSpaceIndex = value.trimEnd().lastIndexOf(" ")
-							const newValue =
-								lastSpaceIndex > 0 ? value.substring(0, lastSpaceIndex + 1) : ""
-							inputRef.current.value = newValue
-							inputRef.current.cursorPosition = newValue.length
-							onFilterChange(newValue)
+						const input = inputAtom.get()
+						if (input) {
+							input.deleteWordBackward()
+							onFilterChange(input.plainText)
 						}
 					}
 				}}
@@ -107,9 +140,7 @@ export function InputArea({
 				focusedBackgroundColor={colors.bg}
 				textColor={colors.text}
 				focusedTextColor={colors.text}
-				placeholderColor={colors.muted}
-				cursorColor={colors.green}
-				style={{ flexGrow: 1 }}
+				style={{ flexGrow: 1, minHeight: 1 }}
 			/>
 		</box>
 	)

@@ -79,11 +79,13 @@ function toTitleCase(str: string): string {
 function extractImports(content: string): {
 	npmDeps: string[]
 	registryDeps: string[]
-	libFiles: string[]
+	toolLibFiles: string[]
+	agentLibFiles: string[]
 } {
 	const npmDeps: string[] = []
 	const registryDeps: string[] = []
-	const libFiles: string[] = []
+	const toolLibFiles: string[] = []
+	const agentLibFiles: string[] = []
 
 	// Match import statements
 	const importRegex =
@@ -101,9 +103,11 @@ function extractImports(content: string): {
 
 		// Check for @/ alias imports (registry dependencies)
 		if (importPath.startsWith("@/tools/lib/")) {
-			// This is a lib file
 			const libName = importPath.replace("@/tools/lib/", "")
-			libFiles.push(libName)
+			toolLibFiles.push(libName)
+		} else if (importPath.startsWith("@/agents/lib/")) {
+			const libName = importPath.replace("@/agents/lib/", "")
+			agentLibFiles.push(libName)
 		} else if (importPath.startsWith("@/tools/")) {
 			const toolName = importPath.replace("@/tools/", "")
 			registryDeps.push(`tools:${toolName}`)
@@ -132,7 +136,8 @@ function extractImports(content: string): {
 	return {
 		npmDeps: [...new Set(npmDeps)],
 		registryDeps: [...new Set(registryDeps)],
-		libFiles: [...new Set(libFiles)],
+		toolLibFiles: [...new Set(toolLibFiles)],
+		agentLibFiles: [...new Set(agentLibFiles)],
 	}
 }
 
@@ -186,12 +191,13 @@ function extractDescription(
 
 async function readLibFile(
 	libName: string,
+	type: "tools" | "agents" = "tools",
 ): Promise<{ path: string; content: string } | null> {
-	const libPath = path.join(SRC_DIR, "tools/lib", `${libName}.ts`)
+	const libPath = path.join(SRC_DIR, `${type}/lib`, `${libName}.ts`)
 	try {
 		const content = await fs.readFile(libPath, "utf-8")
 		return {
-			path: `tools/lib/${libName}.ts`,
+			path: `${type}/lib/${libName}.ts`,
 			content,
 		}
 	} catch {
@@ -215,7 +221,8 @@ async function processFile(
 	}
 
 	const content = await fs.readFile(filePath, "utf-8")
-	const { npmDeps, registryDeps, libFiles } = extractImports(content)
+	const { npmDeps, registryDeps, toolLibFiles, agentLibFiles } =
+		extractImports(content)
 	const description = extractDescription(content, name, type)
 
 	const registryType = `registry:${type.slice(0, -1)}` // tools -> registry:tool
@@ -228,9 +235,19 @@ async function processFile(
 		},
 	]
 
-	// Add lib files
-	for (const libName of libFiles) {
-		const libFile = await readLibFile(libName)
+	for (const libName of toolLibFiles) {
+		const libFile = await readLibFile(libName, "tools")
+		if (libFile) {
+			files.push({
+				path: libFile.path,
+				type: "registry:lib",
+				content: libFile.content,
+			})
+		}
+	}
+
+	for (const libName of agentLibFiles) {
+		const libFile = await readLibFile(libName, "agents")
 		if (libFile) {
 			files.push({
 				path: libFile.path,

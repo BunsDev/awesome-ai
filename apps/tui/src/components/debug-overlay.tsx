@@ -38,7 +38,7 @@ export function DebugOverlay() {
 		>
 			<text fg={colors.green}>
 				Debug Console
-				<span fg={colors.muted}> (` to close, ↑↓ scroll)</span>
+				<span fg={colors.muted}> (⌥ D to close, ↑↓ scroll)</span>
 			</text>
 			<box style={{ height: 1 }} />
 			<scrollbox

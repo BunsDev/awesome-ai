@@ -1,6 +1,51 @@
 import { useAtom } from "@lfades/atom"
+import { RGBA, SyntaxStyle } from "@opentui/core"
 import { colors } from "../theme"
 import { isLoadingAtom, messagesAtom } from "./atoms"
+import { ThinkingSection } from "./thinking-section"
+
+// GitHub Dark-inspired syntax style for markdown
+const syntaxStyle = SyntaxStyle.fromStyles({
+	// Markdown headings
+	"markup.heading": { fg: RGBA.fromHex("#79C0FF"), bold: true },
+	"markup.heading.1": { fg: RGBA.fromHex("#79C0FF"), bold: true },
+	"markup.heading.2": { fg: RGBA.fromHex("#79C0FF"), bold: true },
+	"markup.heading.marker": { fg: RGBA.fromHex("#79C0FF") },
+
+	// Text formatting
+	"markup.bold": { fg: RGBA.fromHex("#E6EDF3"), bold: true },
+	"markup.italic": { fg: RGBA.fromHex("#E6EDF3"), italic: true },
+	"markup.strikethrough": { fg: RGBA.fromHex("#8B949E") },
+
+	// Code
+	"markup.raw": { fg: RGBA.fromHex("#A5D6FF"), bg: RGBA.fromHex("#161B22") },
+	"markup.raw.block": { fg: RGBA.fromHex("#E6EDF3") },
+	"markup.link": { fg: RGBA.fromHex("#58A6FF"), underline: true },
+	"markup.link.url": { fg: RGBA.fromHex("#8B949E") },
+
+	// Lists
+	"markup.list.marker": { fg: RGBA.fromHex("#F78C6C") },
+	punctuation: { fg: RGBA.fromHex("#8B949E") },
+
+	// Code block syntax (for embedded code)
+	keyword: { fg: RGBA.fromHex("#FF7B72"), bold: true },
+	"keyword.import": { fg: RGBA.fromHex("#FF7B72") },
+	function: { fg: RGBA.fromHex("#D2A8FF") },
+	"function.method": { fg: RGBA.fromHex("#D2A8FF") },
+	string: { fg: RGBA.fromHex("#A5D6FF") },
+	number: { fg: RGBA.fromHex("#79C0FF") },
+	comment: { fg: RGBA.fromHex("#8B949E"), italic: true },
+	type: { fg: RGBA.fromHex("#FFA657") },
+	"type.builtin": { fg: RGBA.fromHex("#FFA657") },
+	operator: { fg: RGBA.fromHex("#FF7B72") },
+	variable: { fg: RGBA.fromHex("#E6EDF3") },
+	"variable.builtin": { fg: RGBA.fromHex("#FFA657") },
+	property: { fg: RGBA.fromHex("#79C0FF") },
+	constant: { fg: RGBA.fromHex("#79C0FF") },
+
+	// Default
+	default: { fg: RGBA.fromHex("#E6EDF3") },
+})
 
 export function MessageList() {
 	const [messages] = useAtom(messagesAtom)
@@ -17,32 +62,47 @@ export function MessageList() {
 			focused={false}
 		>
 			{messages.map((msg, i) => (
-				<box key={i} style={{ marginBottom: 1 }}>
+				<box
+					key={i}
+					style={{
+						marginBottom: 1,
+						backgroundColor:
+							msg.role === "assistant" ? colors.bgLight : undefined,
+						paddingLeft: msg.role === "assistant" ? 1 : 0,
+						paddingRight: msg.role === "assistant" ? 1 : 0,
+					}}
+				>
 					{msg.role === "system" ? (
 						<text fg={colors.muted}>
 							{msg.content} <span fg={colors.muted}>{msg.timestamp}</span>
 						</text>
 					) : msg.role === "user" ? (
 						<text>
-							<span fg={colors.pink}>❯ </span>
 							<span fg={colors.text}>{msg.content}</span>
 							<span fg={colors.muted}> {msg.timestamp}</span>
 						</text>
 					) : (
-						<text>
-							<span fg={colors.green}>← </span>
-							<span fg={colors.text}>{msg.content}</span>
-							<span fg={colors.muted}> {msg.timestamp}</span>
-						</text>
+						<box style={{ flexDirection: "column" }}>
+							{msg.thinking && <ThinkingSection thinking={msg.thinking} />}
+							<code
+								content={msg.content}
+								filetype="markdown"
+								syntaxStyle={syntaxStyle}
+							/>
+							<text fg={colors.muted}>{msg.timestamp}</text>
+						</box>
 					)}
 				</box>
 			))}
 			{isLoading && (
-				<box>
-					<text>
-						<span fg={colors.green}>← </span>
-						<span fg={colors.muted}>thinking...</span>
-					</text>
+				<box
+					style={{
+						backgroundColor: colors.bgLight,
+						paddingLeft: 1,
+						paddingRight: 1,
+					}}
+				>
+					<text fg={colors.muted}>thinking...</text>
 				</box>
 			)}
 		</scrollbox>

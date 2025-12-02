@@ -20,7 +20,7 @@ export function Header({ agentName }: HeaderProps) {
 				<span fg={colors.muted}> │ </span>
 				<span fg={colors.green}>{agentName}</span>
 				<span fg={colors.muted}> │ </span>
-				<span fg={colors.muted}>?</span>
+				<span fg={colors.muted}>⌥ S</span>
 				<span fg={colors.muted}> shortcuts</span>
 			</text>
 		</box>

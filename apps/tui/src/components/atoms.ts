@@ -1,13 +1,217 @@
 import { atom } from "@lfades/atom"
-import { getTimestamp, type Message } from "../types"
+import type { TextareaRenderable } from "@opentui/core"
+import type { Message } from "../types"
 
-export const messagesAtom = atom<Message[]>([
+// Test conversation for development
+const testConversation: Message[] = [
 	{
 		role: "system",
-		content: `agent v1.0.0 initialized. ready for input.`,
-		timestamp: getTimestamp(),
+		content: "agent v1.0.0 initialized. ready for input.",
+		timestamp: "09:00:01",
 	},
-])
+	{
+		role: "user",
+		content: "Help me create a todo app in TypeScript",
+		timestamp: "09:00:15",
+	},
+	{
+		role: "assistant",
+		content: `I'd be happy to help you create a todo app! Let's start with the basic structure.
+
+## Project Setup
+
+First, create a new directory and initialize the project:
+
+\`\`\`bash
+mkdir todo-app && cd todo-app
+npm init -y
+npm install typescript @types/node
+\`\`\`
+
+## Todo Interface
+
+Here's the core interface for our todos:
+
+\`\`\`typescript
+interface Todo {
+  id: string;
+  title: string;
+  completed: boolean;
+  createdAt: Date;
+}
+\`\`\`
+
+Would you like me to continue with the implementation?`,
+		timestamp: "09:00:18",
+		thinking: `The user wants to create a todo app in TypeScript. I should:
+1. Start with project setup - they'll need npm init and typescript
+2. Define the core Todo interface first - this establishes the data model
+3. Keep it simple initially - id, title, completed, createdAt are the essentials
+4. Ask if they want to continue before diving into implementation details
+5. Use TypeScript best practices like proper typing`,
+	},
+	{
+		role: "user",
+		content: "Yes, show me how to implement the CRUD operations",
+		timestamp: "09:00:45",
+	},
+	{
+		role: "assistant",
+		content: `Here's a complete **TodoService** class with all CRUD operations:
+
+\`\`\`typescript
+class TodoService {
+  private todos: Map<string, Todo> = new Map();
+
+  create(title: string): Todo {
+    const todo: Todo = {
+      id: crypto.randomUUID(),
+      title,
+      completed: false,
+      createdAt: new Date(),
+    };
+    this.todos.set(todo.id, todo);
+    return todo;
+  }
+
+  read(id: string): Todo | undefined {
+    return this.todos.get(id);
+  }
+
+  update(id: string, updates: Partial<Todo>): Todo | null {
+    const todo = this.todos.get(id);
+    if (!todo) return null;
+
+    const updated = { ...todo, ...updates };
+    this.todos.set(id, updated);
+    return updated;
+  }
+
+  delete(id: string): boolean {
+    return this.todos.delete(id);
+  }
+
+  list(): Todo[] {
+    return Array.from(this.todos.values());
+  }
+}
+\`\`\`
+
+### Key Features:
+- Uses \`Map\` for O(1) lookups
+- Generates unique IDs with \`crypto.randomUUID()\`
+- Supports partial updates
+- Returns \`null\`/\`undefined\` for missing items`,
+		timestamp: "09:00:52",
+		thinking: `User wants CRUD operations. Let me think about the best approach:
+
+Data structure choice:
+- Array: Simple but O(n) for lookups by id
+- Map: O(1) lookups, perfect for id-based operations
+- Object: Similar to Map but Map is cleaner in TypeScript
+
+Going with Map<string, Todo> for:
+- Fast lookups: get(id) is O(1)
+- Easy iteration: values() for listing
+- Built-in delete: delete(id) returns boolean
+
+For update, I'll use Partial<Todo> to allow updating any subset of fields.
+Should return null for missing items to distinguish from undefined fields.
+
+crypto.randomUUID() is available in modern Node.js and browsers - good choice for IDs.`,
+	},
+	{
+		role: "user",
+		content: "Can you add filtering by completed status?",
+		timestamp: "09:01:20",
+	},
+	{
+		role: "assistant",
+		content: `Sure! Here's an enhanced \`list\` method with filtering:
+
+\`\`\`typescript
+list(filter?: { completed?: boolean }): Todo[] {
+  const todos = Array.from(this.todos.values());
+
+  if (filter?.completed !== undefined) {
+    return todos.filter(t => t.completed === filter.completed);
+  }
+
+  return todos;
+}
+\`\`\`
+
+**Usage examples:**
+- \`service.list()\` → all todos
+- \`service.list({ completed: true })\` → only completed
+- \`service.list({ completed: false })\` → only pending
+
+Would you also like me to add **sorting** or **search** functionality?`,
+		timestamp: "09:01:25",
+	},
+	{
+		role: "user",
+		content: "Yes, add search by title",
+		timestamp: "09:01:50",
+	},
+	{
+		role: "assistant",
+		content: `Here's the updated method with both filtering and search:
+
+\`\`\`typescript
+interface ListOptions {
+  completed?: boolean;
+  search?: string;
+}
+
+list(options?: ListOptions): Todo[] {
+  let todos = Array.from(this.todos.values());
+
+  if (options?.completed !== undefined) {
+    todos = todos.filter(t => t.completed === options.completed);
+  }
+
+  if (options?.search) {
+    const query = options.search.toLowerCase();
+    todos = todos.filter(t =>
+      t.title.toLowerCase().includes(query)
+    );
+  }
+
+  return todos;
+}
+\`\`\`
+
+The search is **case-insensitive** and matches partial titles. You can combine both filters:
+
+\`\`\`typescript
+// Find incomplete todos containing "bug"
+service.list({ completed: false, search: "bug" })
+\`\`\``,
+		timestamp: "09:01:55",
+		thinking: `Adding search to the existing filter method. Design considerations:
+
+1. Should I create a separate search method?
+   - No, better to combine with existing list() for flexibility
+
+2. Search behavior:
+   - Case-insensitive (toLowerCase on both)
+   - Partial match (includes not equals)
+   - Only search title for now, could add description later
+
+3. Interface design:
+   - Create ListOptions interface for type safety
+   - Both filters optional
+   - Chainable - apply completed filter first, then search
+
+4. Performance:
+   - For small lists (<1000), chained filters are fine
+   - For larger lists, might want to combine into single pass
+   - Current approach is more readable`,
+	},
+]
+
+export const messagesAtom = atom<Message[]>(testConversation)
 
 export const isLoadingAtom = atom(false)
 export const showDebugAtom = atom(false)
@@ -17,6 +221,7 @@ export const showCommandsAtom = atom(false)
 export const commandFilterAtom = atom("")
 export const selectedCommandAtom = atom(0)
 export const showShortcutsAtom = atom(false)
+export const inputAtom = atom<TextareaRenderable | null>(null)
 
 export function debug(...args: unknown[]) {
 	const msg = args

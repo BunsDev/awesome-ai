@@ -1,6 +1,9 @@
+import path from "path"
 import { afterAll, beforeAll, describe, expect, it } from "vitest"
 import { startMockRegistry, stopMockRegistry } from "./lib/mock-registry"
 import { createTestProject, runCLI } from "./lib/test-utils"
+
+const FIXTURES_DIR = path.resolve(__dirname, "fixtures")
 
 describe("add command", () => {
 	let registryUrl: string
@@ -252,5 +255,374 @@ describe("add command", () => {
 		// Import should use ~/tools alias
 		const content = await project.readFile("src/tools/tool-with-lib.ts")
 		expect(content).toContain("~/tools/lib/helper")
+	})
+
+	it("adds agent with lib files to correct locations", async () => {
+		const project = await createProjectWithRegistry()
+
+		const result = await runCLI(
+			["add", "@test/agent-with-lib", "--type", "agents", "--yes"],
+			{ cwd: project.path },
+		)
+
+		expect(result.exitCode).toBe(0)
+
+		// Main agent file should be created
+		expect(await project.exists("agents/agent-with-lib.ts")).toBe(true)
+
+		// Agent lib files should be created in agents/lib/
+		expect(await project.exists("agents/lib/context.ts")).toBe(true)
+		expect(await project.exists("agents/lib/permissions.ts")).toBe(true)
+
+		// Verify content of lib files
+		const contextContent = await project.readFile("agents/lib/context.ts")
+		expect(contextContent).toContain("createContext")
+
+		const permissionsContent = await project.readFile(
+			"agents/lib/permissions.ts",
+		)
+		expect(permissionsContent).toContain("Permission")
+	})
+
+	it("handles agent and prompt with same name correctly", async () => {
+		const project = await createProjectWithRegistry()
+
+		const result = await runCLI(
+			["add", "@test/full-agent", "--type", "agents", "--yes"],
+			{ cwd: project.path },
+		)
+
+		expect(result.exitCode).toBe(0)
+
+		// Both agent and prompt should be created with correct content
+		expect(await project.exists("agents/full-agent.ts")).toBe(true)
+		expect(await project.exists("prompts/full-agent.ts")).toBe(true)
+
+		// Agent file should have agent-specific content
+		const agentContent = await project.readFile("agents/full-agent.ts")
+		expect(agentContent).toContain("fullAgent")
+		expect(agentContent).toContain("getSystemPrompt")
+
+		// Prompt file should have prompt-specific content
+		const promptContent = await project.readFile("prompts/full-agent.ts")
+		expect(promptContent).toContain("getSystemPrompt")
+		expect(promptContent).toContain("full agent assistant")
+	})
+
+	it("handles registry:lib file type correctly", async () => {
+		const project = await createProjectWithRegistry()
+
+		const result = await runCLI(
+			["add", "@test/tool-with-lib", "--type", "tools", "--yes"],
+			{ cwd: project.path },
+		)
+
+		expect(result.exitCode).toBe(0)
+
+		// Main tool file in tools/
+		expect(await project.exists("tools/tool-with-lib.ts")).toBe(true)
+
+		// Lib file should be in tools/lib/ (not in a wrong location)
+		expect(await project.exists("tools/lib/helper.ts")).toBe(true)
+
+		// Verify the lib file has correct content
+		const libContent = await project.readFile("tools/lib/helper.ts")
+		expect(libContent).toContain("export function helper")
+	})
+
+	it("resolves registry dependencies recursively", async () => {
+		const project = await createProjectWithRegistry()
+
+		const result = await runCLI(
+			["add", "@test/test-agent", "--type", "agents", "--yes"],
+			{ cwd: project.path },
+		)
+
+		expect(result.exitCode).toBe(0)
+
+		// Agent should be created
+		expect(await project.exists("agents/test-agent.ts")).toBe(true)
+
+		// Dependencies should also be created
+		expect(await project.exists("tools/test-tool.ts")).toBe(true)
+		expect(await project.exists("prompts/test-prompt.ts")).toBe(true)
+	})
+})
+
+describe("add command with missing agents.json", () => {
+	it("mentions agents.json when config is missing", async () => {
+		const project = await createTestProject({
+			packageJson: { name: "test-project" },
+			tsconfig: {
+				compilerOptions: {
+					baseUrl: ".",
+					paths: {
+						"@/*": ["./*"],
+					},
+				},
+			},
+			// No agents.json file - simulates missing config
+		})
+
+		const result = await runCLI(
+			["add", "test-tool", "--type", "tools", "--yes"],
+			{ cwd: project.path },
+		)
+
+		// The output should mention agents.json when config is missing
+		expect(result.stdout).toContain("agents.json")
+	})
+})
+
+describe("add command with circular dependencies", () => {
+	let registryUrl: string
+
+	beforeAll(async () => {
+		const registry = await startMockRegistry()
+		registryUrl = registry.url
+	})
+
+	afterAll(async () => {
+		await stopMockRegistry()
+	})
+
+	it("warns about circular dependencies but still succeeds", async () => {
+		const project = await createTestProject({
+			packageJson: { name: "test-project" },
+			tsconfig: {
+				compilerOptions: {
+					baseUrl: ".",
+					paths: {
+						"@/*": ["./*"],
+					},
+				},
+			},
+			files: {
+				"agents.json": JSON.stringify({
+					tsx: true,
+					aliases: {
+						agents: "@/agents",
+						tools: "@/tools",
+						prompts: "@/prompts",
+					},
+					registries: {
+						"@test": `${registryUrl}/{type}/{name}.json`,
+					},
+				}),
+			},
+		})
+
+		const result = await runCLI(
+			["add", "@test/circular-agent-a", "--type", "agents", "--yes"],
+			{ cwd: project.path },
+		)
+
+		// Should succeed despite circular dependencies
+		expect(result.exitCode).toBe(0)
+
+		// Should show warning about circular dependencies
+		expect(result.stdout + result.stderr).toContain("Circular")
+
+		// Files should still be created
+		expect(await project.exists("agents/circular-agent-a.ts")).toBe(true)
+		expect(await project.exists("agents/circular-agent-b.ts")).toBe(true)
+	})
+})
+
+describe("add command with environment variable override", () => {
+	it("uses AWESOME_AI_REGISTRY_URL environment variable", async () => {
+		const project = await createTestProject({
+			packageJson: { name: "test-project" },
+			tsconfig: {
+				compilerOptions: {
+					baseUrl: ".",
+					paths: {
+						"@/*": ["./*"],
+					},
+				},
+			},
+			files: {
+				"agents.json": JSON.stringify({
+					tsx: true,
+					aliases: {
+						agents: "@/agents",
+						tools: "@/tools",
+						prompts: "@/prompts",
+					},
+					// No custom registry - uses builtin @awesome-ai
+				}),
+			},
+		})
+
+		// Use env var to point to local fixtures instead of GitHub
+		const result = await runCLI(
+			["add", "simple-agent", "--type", "agents", "--yes"],
+			{
+				cwd: project.path,
+				env: {
+					AWESOME_AI_REGISTRY_URL: FIXTURES_DIR,
+				},
+			},
+		)
+
+		expect(result.exitCode).toBe(0)
+		expect(await project.exists("agents/simple-agent.ts")).toBe(true)
+
+		const content = await project.readFile("agents/simple-agent.ts")
+		expect(content).toContain("simpleAgent")
+	})
+
+	it("REGISTRY_URL also works as fallback", async () => {
+		const project = await createTestProject({
+			packageJson: { name: "test-project" },
+			tsconfig: {
+				compilerOptions: {
+					baseUrl: ".",
+					paths: {
+						"@/*": ["./*"],
+					},
+				},
+			},
+			files: {
+				"agents.json": JSON.stringify({
+					tsx: true,
+					aliases: {
+						agents: "@/agents",
+						tools: "@/tools",
+						prompts: "@/prompts",
+					},
+				}),
+			},
+		})
+
+		// Use REGISTRY_URL as fallback
+		const result = await runCLI(
+			["add", "test-tool", "--type", "tools", "--yes"],
+			{
+				cwd: project.path,
+				env: {
+					REGISTRY_URL: FIXTURES_DIR,
+				},
+			},
+		)
+
+		expect(result.exitCode).toBe(0)
+		expect(await project.exists("tools/test-tool.ts")).toBe(true)
+	})
+})
+
+describe("add command with local file registry", () => {
+	it("supports local file path as registry URL", async () => {
+		const project = await createTestProject({
+			packageJson: { name: "test-project" },
+			tsconfig: {
+				compilerOptions: {
+					baseUrl: ".",
+					paths: {
+						"@/*": ["./*"],
+					},
+				},
+			},
+			files: {
+				"agents.json": JSON.stringify({
+					tsx: true,
+					aliases: {
+						agents: "@/agents",
+						tools: "@/tools",
+						prompts: "@/prompts",
+					},
+					registries: {
+						// Use local file path instead of HTTP URL
+						"@local": `${FIXTURES_DIR}/{type}/{name}.json`,
+					},
+				}),
+			},
+		})
+
+		const result = await runCLI(
+			["add", "@local/simple-agent", "--type", "agents", "--yes"],
+			{ cwd: project.path },
+		)
+
+		expect(result.exitCode).toBe(0)
+		expect(await project.exists("agents/simple-agent.ts")).toBe(true)
+
+		const content = await project.readFile("agents/simple-agent.ts")
+		expect(content).toContain("simpleAgent")
+	})
+
+	it("resolves dependencies from local file registry", async () => {
+		const project = await createTestProject({
+			packageJson: { name: "test-project" },
+			tsconfig: {
+				compilerOptions: {
+					baseUrl: ".",
+					paths: {
+						"@/*": ["./*"],
+					},
+				},
+			},
+			files: {
+				"agents.json": JSON.stringify({
+					tsx: true,
+					aliases: {
+						agents: "@/agents",
+						tools: "@/tools",
+						prompts: "@/prompts",
+					},
+					registries: {
+						"@local": `${FIXTURES_DIR}/{type}/{name}.json`,
+					},
+				}),
+			},
+		})
+
+		const result = await runCLI(
+			["add", "@local/agent-with-lib", "--type", "agents", "--yes"],
+			{ cwd: project.path },
+		)
+
+		expect(result.exitCode).toBe(0)
+
+		// Agent and its lib files should be created
+		expect(await project.exists("agents/agent-with-lib.ts")).toBe(true)
+		expect(await project.exists("agents/lib/context.ts")).toBe(true)
+		expect(await project.exists("agents/lib/permissions.ts")).toBe(true)
+	})
+
+	it("handles relative local file paths", async () => {
+		// Create project in a subdirectory relative to fixtures
+		const project = await createTestProject({
+			packageJson: { name: "test-project" },
+			tsconfig: {
+				compilerOptions: {
+					baseUrl: ".",
+					paths: {
+						"@/*": ["./*"],
+					},
+				},
+			},
+			files: {
+				"agents.json": JSON.stringify({
+					tsx: true,
+					aliases: {
+						agents: "@/agents",
+						tools: "@/tools",
+						prompts: "@/prompts",
+					},
+					registries: {
+						"@local": `${FIXTURES_DIR}/{type}/{name}.json`,
+					},
+				}),
+			},
+		})
+
+		const result = await runCLI(
+			["add", "@local/test-tool", "--type", "tools", "--yes"],
+			{ cwd: project.path },
+		)
+
+		expect(result.exitCode).toBe(0)
+		expect(await project.exists("tools/test-tool.ts")).toBe(true)
 	})
 })
