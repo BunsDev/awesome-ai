@@ -3,7 +3,7 @@ import type { ScrollBoxRenderable } from "@opentui/core"
 import { useTerminalDimensions } from "@opentui/react"
 import { useEffect, useRef } from "react"
 import { colors } from "../theme"
-import { debugLogsAtom } from "./atoms"
+import { debugLogsAtom, inputAtom } from "./atoms"
 
 export function DebugOverlay() {
 	const [logs] = useAtom(debugLogsAtom)
@@ -18,6 +18,13 @@ export function DebugOverlay() {
 			}, 1)
 		}
 	}, [logs.length])
+
+	// Refocus input when debug overlay closes (scrollbox steals focus)
+	useEffect(() => {
+		return () => {
+			inputAtom.get()?.focus()
+		}
+	}, [])
 
 	return (
 		<box

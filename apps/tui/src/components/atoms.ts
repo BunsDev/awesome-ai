@@ -1,22 +1,41 @@
 import { atom } from "@lfades/atom"
 import type { TextareaRenderable } from "@opentui/core"
-import type { Message } from "../types"
+import type { TUIMessage } from "../types"
+import type { DiscoveredAgent } from "../utils/agent-discovery"
 
-// Test conversation for development
-const testConversation: Message[] = [
+// Test conversation for development using UIMessage structure
+const testConversation: TUIMessage[] = [
 	{
+		id: "msg-1",
 		role: "system",
-		content: "agent v1.0.0 initialized. ready for input.",
-		timestamp: "09:00:01",
+		metadata: { timestamp: "[09:00:01]" },
+		parts: [
+			{ type: "text", text: "agent v1.0.0 initialized. ready for input." },
+		],
 	},
 	{
+		id: "msg-2",
 		role: "user",
-		content: "Help me create a todo app in TypeScript",
-		timestamp: "09:00:15",
+		metadata: { timestamp: "[09:00:15]" },
+		parts: [{ type: "text", text: "Help me create a todo app in TypeScript" }],
 	},
 	{
+		id: "msg-3",
 		role: "assistant",
-		content: `I'd be happy to help you create a todo app! Let's start with the basic structure.
+		metadata: { timestamp: "[09:00:18]" },
+		parts: [
+			{
+				type: "reasoning",
+				text: `The user wants to create a todo app in TypeScript. I should:
+1. Start with project setup - they'll need npm init and typescript
+2. Define the core Todo interface first - this establishes the data model
+3. Keep it simple initially - id, title, completed, createdAt are the essentials
+4. Ask if they want to continue before diving into implementation details
+5. Use TypeScript best practices like proper typing`,
+			},
+			{
+				type: "text",
+				text: `I'd be happy to help you create a todo app! Let's start with the basic structure.
 
 ## Project Setup
 
@@ -42,22 +61,47 @@ interface Todo {
 \`\`\`
 
 Would you like me to continue with the implementation?`,
-		timestamp: "09:00:18",
-		thinking: `The user wants to create a todo app in TypeScript. I should:
-1. Start with project setup - they'll need npm init and typescript
-2. Define the core Todo interface first - this establishes the data model
-3. Keep it simple initially - id, title, completed, createdAt are the essentials
-4. Ask if they want to continue before diving into implementation details
-5. Use TypeScript best practices like proper typing`,
+			},
+		],
 	},
 	{
+		id: "msg-4",
 		role: "user",
-		content: "Yes, show me how to implement the CRUD operations",
-		timestamp: "09:00:45",
+		metadata: { timestamp: "[09:00:45]" },
+		parts: [
+			{
+				type: "text",
+				text: "Yes, show me how to implement the CRUD operations",
+			},
+		],
 	},
 	{
+		id: "msg-5",
 		role: "assistant",
-		content: `Here's a complete **TodoService** class with all CRUD operations:
+		metadata: { timestamp: "[09:00:52]" },
+		parts: [
+			{
+				type: "reasoning",
+				text: `User wants CRUD operations. Let me think about the best approach:
+
+Data structure choice:
+- Array: Simple but O(n) for lookups by id
+- Map: O(1) lookups, perfect for id-based operations
+- Object: Similar to Map but Map is cleaner in TypeScript
+
+Going with Map<string, Todo> for:
+- Fast lookups: get(id) is O(1)
+- Easy iteration: values() for listing
+- Built-in delete: delete(id) returns boolean
+
+For update, I'll use Partial<Todo> to allow updating any subset of fields.
+Should return null for missing items to distinguish from undefined fields.
+
+crypto.randomUUID() is available in modern Node.js and browsers - good choice for IDs.`,
+			},
+			{
+				type: "text",
+				text: `Here's a complete **TodoService** class with all CRUD operations:
 
 \`\`\`typescript
 class TodoService {
@@ -102,32 +146,25 @@ class TodoService {
 - Generates unique IDs with \`crypto.randomUUID()\`
 - Supports partial updates
 - Returns \`null\`/\`undefined\` for missing items`,
-		timestamp: "09:00:52",
-		thinking: `User wants CRUD operations. Let me think about the best approach:
-
-Data structure choice:
-- Array: Simple but O(n) for lookups by id
-- Map: O(1) lookups, perfect for id-based operations
-- Object: Similar to Map but Map is cleaner in TypeScript
-
-Going with Map<string, Todo> for:
-- Fast lookups: get(id) is O(1)
-- Easy iteration: values() for listing
-- Built-in delete: delete(id) returns boolean
-
-For update, I'll use Partial<Todo> to allow updating any subset of fields.
-Should return null for missing items to distinguish from undefined fields.
-
-crypto.randomUUID() is available in modern Node.js and browsers - good choice for IDs.`,
+			},
+		],
 	},
 	{
+		id: "msg-6",
 		role: "user",
-		content: "Can you add filtering by completed status?",
-		timestamp: "09:01:20",
+		metadata: { timestamp: "[09:01:20]" },
+		parts: [
+			{ type: "text", text: "Can you add filtering by completed status?" },
+		],
 	},
 	{
+		id: "msg-7",
 		role: "assistant",
-		content: `Sure! Here's an enhanced \`list\` method with filtering:
+		metadata: { timestamp: "[09:01:25]" },
+		parts: [
+			{
+				type: "text",
+				text: `Sure! Here's an enhanced \`list\` method with filtering:
 
 \`\`\`typescript
 list(filter?: { completed?: boolean }): Todo[] {
@@ -147,16 +184,45 @@ list(filter?: { completed?: boolean }): Todo[] {
 - \`service.list({ completed: false })\` → only pending
 
 Would you also like me to add **sorting** or **search** functionality?`,
-		timestamp: "09:01:25",
+			},
+		],
 	},
 	{
+		id: "msg-8",
 		role: "user",
-		content: "Yes, add search by title",
-		timestamp: "09:01:50",
+		metadata: { timestamp: "[09:01:50]" },
+		parts: [{ type: "text", text: "Yes, add search by title" }],
 	},
 	{
+		id: "msg-9",
 		role: "assistant",
-		content: `Here's the updated method with both filtering and search:
+		metadata: { timestamp: "[09:01:55]" },
+		parts: [
+			{
+				type: "reasoning",
+				text: `Adding search to the existing filter method. Design considerations:
+
+1. Should I create a separate search method?
+   - No, better to combine with existing list() for flexibility
+
+2. Search behavior:
+   - Case-insensitive (toLowerCase on both)
+   - Partial match (includes not equals)
+   - Only search title for now, could add description later
+
+3. Interface design:
+   - Create ListOptions interface for type safety
+   - Both filters optional
+   - Chainable - apply completed filter first, then search
+
+4. Performance:
+   - For small lists (<1000), chained filters are fine
+   - For larger lists, might want to combine into single pass
+   - Current approach is more readable`,
+			},
+			{
+				type: "text",
+				text: `Here's the updated method with both filtering and search:
 
 \`\`\`typescript
 interface ListOptions {
@@ -188,30 +254,13 @@ The search is **case-insensitive** and matches partial titles. You can combine b
 // Find incomplete todos containing "bug"
 service.list({ completed: false, search: "bug" })
 \`\`\``,
-		timestamp: "09:01:55",
-		thinking: `Adding search to the existing filter method. Design considerations:
-
-1. Should I create a separate search method?
-   - No, better to combine with existing list() for flexibility
-
-2. Search behavior:
-   - Case-insensitive (toLowerCase on both)
-   - Partial match (includes not equals)
-   - Only search title for now, could add description later
-
-3. Interface design:
-   - Create ListOptions interface for type safety
-   - Both filters optional
-   - Chainable - apply completed filter first, then search
-
-4. Performance:
-   - For small lists (<1000), chained filters are fine
-   - For larger lists, might want to combine into single pass
-   - Current approach is more readable`,
+			},
+		],
 	},
 ]
 
-export const messagesAtom = atom<Message[]>(testConversation)
+// Start with empty messages - test conversation kept for development reference
+export const messagesAtom = atom<TUIMessage[]>([])
 
 export const isLoadingAtom = atom(false)
 export const showDebugAtom = atom(false)
@@ -223,7 +272,13 @@ export const selectedCommandAtom = atom(0)
 export const showShortcutsAtom = atom(false)
 export const inputAtom = atom<TextareaRenderable | null>(null)
 
-export function debug(...args: unknown[]) {
+// Agent selection
+export const showAgentSelectorAtom = atom(false)
+export const availableAgentsAtom = atom<DiscoveredAgent[]>([])
+export const selectedAgentIndexAtom = atom(0)
+export const currentAgentAtom = atom<string | null>(null)
+
+export function debugLog(...args: unknown[]) {
 	const msg = args
 		.map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
 		.join(" ")

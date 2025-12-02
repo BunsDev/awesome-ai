@@ -44,28 +44,15 @@ describe("add command", () => {
 		})
 	}
 
-	it("requires --type option", async () => {
-		// Simple test - doesn't need registry
-		const project = await createTestProject({
-			packageJson: { name: "test-project" },
-			tsconfig: true,
-			files: {
-				"agents.json": JSON.stringify({
-					tsx: true,
-					aliases: {
-						agents: "@/agents",
-						tools: "@/tools",
-						prompts: "@/prompts",
-					},
-				}),
-			},
+	it("defaults to agent type when no flag is provided", async () => {
+		const project = await createProjectWithRegistry()
+
+		const result = await runCLI(["add", "@test/simple-agent", "--yes"], {
+			cwd: project.path,
 		})
 
-		const result = await runCLI(["add", "test-tool"], { cwd: project.path })
-
-		expect(result.exitCode).toBe(1)
-		// CLI outputs errors to stdout via logger
-		expect(result.stdout).toContain("--type")
+		expect(result.exitCode).toBe(0)
+		expect(await project.exists("agents/simple-agent.ts")).toBe(true)
 	})
 
 	it("requires item names", async () => {
@@ -85,7 +72,7 @@ describe("add command", () => {
 			},
 		})
 
-		const result = await runCLI(["add", "--type", "tools"], {
+		const result = await runCLI(["add", "--tool"], {
 			cwd: project.path,
 		})
 
@@ -98,7 +85,7 @@ describe("add command", () => {
 		const project = await createProjectWithRegistry()
 
 		const result = await runCLI(
-			["add", "@test/test-tool", "--type", "tools", "--yes"],
+			["add", "@test/test-tool", "--tool", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -113,7 +100,7 @@ describe("add command", () => {
 		const project = await createProjectWithRegistry()
 
 		const result = await runCLI(
-			["add", "@test/test-prompt", "--type", "prompts", "--yes"],
+			["add", "@test/test-prompt", "--prompt", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -125,7 +112,7 @@ describe("add command", () => {
 		const project = await createProjectWithRegistry()
 
 		const result = await runCLI(
-			["add", "@test/simple-agent", "--type", "agents", "--yes"],
+			["add", "@test/simple-agent", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -137,7 +124,7 @@ describe("add command", () => {
 		const project = await createProjectWithRegistry()
 
 		const result = await runCLI(
-			["add", "@test/tool-with-lib", "--type", "tools", "--yes"],
+			["add", "@test/tool-with-lib", "--tool", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -152,7 +139,7 @@ describe("add command", () => {
 		const project = await createProjectWithRegistry()
 
 		const result = await runCLI(
-			["add", "@test/tool-with-lib", "--type", "tools", "--yes"],
+			["add", "@test/tool-with-lib", "--tool", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -165,7 +152,7 @@ describe("add command", () => {
 		const project = await createProjectWithRegistry()
 
 		// First add
-		await runCLI(["add", "@test/test-tool", "--type", "tools", "--yes"], {
+		await runCLI(["add", "@test/test-tool", "--tool", "--yes"], {
 			cwd: project.path,
 		})
 
@@ -174,7 +161,7 @@ describe("add command", () => {
 
 		// Second add with overwrite
 		const result = await runCLI(
-			["add", "@test/test-tool", "--type", "tools", "--yes", "--overwrite"],
+			["add", "@test/test-tool", "--tool", "--yes", "--overwrite"],
 			{ cwd: project.path },
 		)
 
@@ -189,7 +176,7 @@ describe("add command", () => {
 		const project = await createProjectWithRegistry()
 
 		const result = await runCLI(
-			["add", "@test/test-tool", "--type", "tools", "--yes", "--silent"],
+			["add", "@test/test-tool", "--tool", "--yes", "--silent"],
 			{ cwd: project.path },
 		)
 
@@ -206,8 +193,7 @@ describe("add command", () => {
 				"add",
 				"@test/test-tool",
 				"@test/tool-with-lib",
-				"--type",
-				"tools",
+				"--tool",
 				"--yes",
 			],
 			{ cwd: project.path },
@@ -245,7 +231,7 @@ describe("add command", () => {
 		})
 
 		const result = await runCLI(
-			["add", "@test/tool-with-lib", "--type", "tools", "--yes"],
+			["add", "@test/tool-with-lib", "--tool", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -257,11 +243,55 @@ describe("add command", () => {
 		expect(content).toContain("~/tools/lib/helper")
 	})
 
+	it("respects custom aliases for agents with src directory", async () => {
+		const project = await createTestProject({
+			packageJson: { name: "test-project" },
+			tsconfig: {
+				compilerOptions: {
+					baseUrl: ".",
+					paths: {
+						"~/*": ["./src/*"],
+					},
+				},
+			},
+			files: {
+				"agents.json": JSON.stringify({
+					tsx: true,
+					aliases: {
+						agents: "~/agents",
+						tools: "~/tools",
+						prompts: "~/prompts",
+					},
+					registries: {
+						"@test": `${registryUrl}/{type}/{name}.json`,
+					},
+				}),
+			},
+		})
+
+		const result = await runCLI(
+			["add", "@test/agent-with-lib", "--yes"],
+			{ cwd: project.path },
+		)
+
+		expect(result.exitCode).toBe(0)
+
+		// Files should be in src/agents due to tsconfig path alias resolution
+		expect(await project.exists("src/agents/agent-with-lib.ts")).toBe(true)
+		expect(await project.exists("src/agents/lib/context.ts")).toBe(true)
+		expect(await project.exists("src/agents/lib/permissions.ts")).toBe(true)
+
+		// Imports should use ~/agents alias
+		const agentContent = await project.readFile("src/agents/agent-with-lib.ts")
+		expect(agentContent).toContain("~/agents/lib/context")
+		expect(agentContent).toContain("~/agents/lib/permissions")
+	})
+
 	it("adds agent with lib files to correct locations", async () => {
 		const project = await createProjectWithRegistry()
 
 		const result = await runCLI(
-			["add", "@test/agent-with-lib", "--type", "agents", "--yes"],
+			["add", "@test/agent-with-lib", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -288,7 +318,7 @@ describe("add command", () => {
 		const project = await createProjectWithRegistry()
 
 		const result = await runCLI(
-			["add", "@test/full-agent", "--type", "agents", "--yes"],
+			["add", "@test/full-agent", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -313,7 +343,7 @@ describe("add command", () => {
 		const project = await createProjectWithRegistry()
 
 		const result = await runCLI(
-			["add", "@test/tool-with-lib", "--type", "tools", "--yes"],
+			["add", "@test/tool-with-lib", "--tool", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -334,7 +364,7 @@ describe("add command", () => {
 		const project = await createProjectWithRegistry()
 
 		const result = await runCLI(
-			["add", "@test/test-agent", "--type", "agents", "--yes"],
+			["add", "@test/test-agent", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -365,7 +395,7 @@ describe("add command with missing agents.json", () => {
 		})
 
 		const result = await runCLI(
-			["add", "test-tool", "--type", "tools", "--yes"],
+			["add", "test-tool", "--tool", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -413,7 +443,7 @@ describe("add command with circular dependencies", () => {
 		})
 
 		const result = await runCLI(
-			["add", "@test/circular-agent-a", "--type", "agents", "--yes"],
+			["add", "@test/circular-agent-a", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -456,7 +486,7 @@ describe("add command with environment variable override", () => {
 
 		// Use env var to point to local fixtures instead of GitHub
 		const result = await runCLI(
-			["add", "simple-agent", "--type", "agents", "--yes"],
+			["add", "simple-agent", "--yes"],
 			{
 				cwd: project.path,
 				env: {
@@ -497,7 +527,7 @@ describe("add command with environment variable override", () => {
 
 		// Use REGISTRY_URL as fallback
 		const result = await runCLI(
-			["add", "test-tool", "--type", "tools", "--yes"],
+			["add", "test-tool", "--tool", "--yes"],
 			{
 				cwd: project.path,
 				env: {
@@ -540,7 +570,7 @@ describe("add command with local file registry", () => {
 		})
 
 		const result = await runCLI(
-			["add", "@local/simple-agent", "--type", "agents", "--yes"],
+			["add", "@local/simple-agent", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -578,7 +608,7 @@ describe("add command with local file registry", () => {
 		})
 
 		const result = await runCLI(
-			["add", "@local/agent-with-lib", "--type", "agents", "--yes"],
+			["add", "@local/agent-with-lib", "--yes"],
 			{ cwd: project.path },
 		)
 
@@ -618,7 +648,7 @@ describe("add command with local file registry", () => {
 		})
 
 		const result = await runCLI(
-			["add", "@local/test-tool", "--type", "tools", "--yes"],
+			["add", "@local/test-tool", "--tool", "--yes"],
 			{ cwd: project.path },
 		)
 

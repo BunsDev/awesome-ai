@@ -1,15 +1,15 @@
 import { useAtom } from "@lfades/atom"
-import { createCliRenderer, type ScrollBoxRenderable } from "@opentui/core"
-import { createRoot, useKeyboard } from "@opentui/react"
-import { useCallback, useEffect, useRef } from "react"
-import { COMMANDS } from "./commands"
+import { createCliRenderer } from "@opentui/core"
+import { createRoot, useKeyboard, useRenderer } from "@opentui/react"
 import {
-	commandFilterAtom,
-	debugLogsAtom,
-	inputAtom,
-	isLoadingAtom,
+	AgentSelector,
+	handleAgentSelectorKey,
+} from "./components/agent-selector"
+import {
+	availableAgentsAtom,
+	currentAgentAtom,
 	messagesAtom,
-	selectedCommandAtom,
+	showAgentSelectorAtom,
 	showCommandsAtom,
 	showDebugAtom,
 	showShortcutsAtom,
@@ -22,242 +22,74 @@ import { InputArea } from "./components/input-area"
 import { MessageList } from "./components/message-list"
 import { ShortcutsPanel } from "./components/shortcuts-panel"
 import { colors } from "./theme"
-import { getTimestamp, type Message } from "./types"
+import { createSystemMessage } from "./types"
+import { setCwd } from "./utils/agent"
+import { discoverAgents } from "./utils/agent-discovery"
+import { copyToClipboard } from "./utils/clipboard"
 
-function Chat({ agentName }: { agentName: string }) {
+function Chat() {
 	const [showDebug, setShowDebug] = useAtom(showDebugAtom)
 	const [showShortcuts] = useAtom(showShortcutsAtom)
-	const [showCommands, setShowCommands] = useAtom(showCommandsAtom)
-	const [commandFilter, setCommandFilter] = useAtom(commandFilterAtom)
-	const [selectedCommand, setSelectedCommand] = useAtom(selectedCommandAtom)
-	const commandScrollRef = useRef<ScrollBoxRenderable>(null)
-
-	// Filter commands based on input
-	const filteredCommands = COMMANDS.filter((cmd) =>
-		cmd.name.toLowerCase().includes(commandFilter.toLowerCase()),
-	)
-
-	// Keep refs updated for keyboard handler
-	const stateRef = useRef({ showCommands, filteredCommands, selectedCommand })
-	stateRef.current = { showCommands, filteredCommands, selectedCommand }
-
-	// Scroll to keep selected command visible
-	const maxVisibleItems = 10
-	useEffect(() => {
-		if (commandScrollRef.current && showCommands) {
-			const scrollTop = Math.max(0, selectedCommand - maxVisibleItems + 1)
-			commandScrollRef.current.scrollTo(scrollTop)
-		}
-	}, [selectedCommand, showCommands])
-
-	// Keep selectedCommand in bounds when filter changes
-	useEffect(() => {
-		if (
-			selectedCommand >= filteredCommands.length &&
-			filteredCommands.length > 0
-		) {
-			setSelectedCommand(filteredCommands.length - 1)
-		}
-	}, [filteredCommands.length, selectedCommand, setSelectedCommand])
-
-	// Refocus input when debug overlay closes (it steals focus with its scrollbox)
-	const prevShowDebug = useRef(showDebug)
-	useEffect(() => {
-		const input = inputAtom.get()
-		if (prevShowDebug.current && !showDebug && input) {
-			input.focus()
-		}
-		prevShowDebug.current = showDebug
-	}, [showDebug])
-
-	const debugLog = useCallback((...args: unknown[]) => {
-		const msg = args
-			.map((a) => (typeof a === "object" ? JSON.stringify(a) : String(a)))
-			.join(" ")
-		debugLogsAtom.set([...debugLogsAtom.get().slice(-99), msg])
-	}, [])
-
-	const executeCommand = useCallback(
-		(commandName: string) => {
-			const addSystemMessage = (content: string) => {
-				messagesAtom.set([
-					...messagesAtom.get(),
-					{ role: "system", content, timestamp: getTimestamp() },
-				])
-			}
-
-			switch (commandName) {
-				case "/help":
-					addSystemMessage(
-						`Available commands:\n${COMMANDS.map((c) => `  ${c.name} - ${c.description}`).join("\n")}`,
-					)
-					break
-				case "/clear":
-					messagesAtom.set([
-						{
-							role: "system",
-							content: "Terminal cleared.",
-							timestamp: getTimestamp(),
-						},
-					])
-					break
-				case "/summarize":
-					addSystemMessage("Summarizing conversation... (not implemented)")
-					break
-				case "/export":
-					addSystemMessage("Exporting conversation... (not implemented)")
-					break
-				case "/time":
-					addSystemMessage(`Current time: ${new Date().toLocaleString()}`)
-					break
-				case "/version":
-					addSystemMessage(`Agent: ${agentName}\nVersion: 1.0.0`)
-					break
-				default:
-					addSystemMessage(`Unknown command: ${commandName}`)
-			}
-		},
-		[agentName],
-	)
-
-	const selectCommand = useCallback(
-		(index: number) => {
-			const command = filteredCommands[index]
-			const input = inputAtom.get()
-			if (command && input) {
-				input.setText(`${command.name} `)
-				input.gotoBufferEnd()
-				setShowCommands(false)
-				setCommandFilter("")
-				setSelectedCommand(0)
-			}
-		},
-		[filteredCommands, setShowCommands, setCommandFilter, setSelectedCommand],
-	)
+	const [showCommands] = useAtom(showCommandsAtom)
+	const [showAgentSelector] = useAtom(showAgentSelectorAtom)
+	const [currentAgent] = useAtom(currentAgentAtom)
+	const renderer = useRenderer()
 
 	useKeyboard((key) => {
+		// Handle agent selector keyboard events first
+		if (handleAgentSelectorKey(key)) {
+			key.preventDefault()
+			return
+		}
+
 		// Ctrl+C to exit
 		if (key.name === "c" && key.ctrl) {
+			key.preventDefault()
 			exitTui()
 			return
 		}
 
+		// Alt+A to toggle agent selector
+		if (key.name === "a" && (key.meta || key.option)) {
+			key.preventDefault()
+			showAgentSelectorAtom.set(!showAgentSelectorAtom.get())
+			return
+		}
+
+		// Alt+D to toggle debug overlay
 		if (key.name === "d" && (key.meta || key.option)) {
+			key.preventDefault()
 			setShowDebug(!showDebugAtom.get())
 			return
 		}
 
+		// Alt+S to toggle shortcuts panel
 		if (key.name === "s" && (key.meta || key.option)) {
+			key.preventDefault()
 			showShortcutsAtom.set(!showShortcutsAtom.get())
 			return
 		}
 
 		// Escape to close shortcuts panel
 		if (key.name === "escape" && showShortcutsAtom.get()) {
+			key.preventDefault()
 			showShortcutsAtom.set(false)
 			return
 		}
 
-		if (showDebug) {
-			debugLog(
-				"Key:",
-				key.name,
-				"opt:",
-				key.option,
-				"meta:",
-				key.meta,
-				"ctrl:",
-				key.ctrl,
-			)
+		// Copy selected text with Option+C (⌥C)
+		if (key.name === "c" && key.meta) {
+			const globalSelection = renderer.getSelection()
+			if (globalSelection) {
+				const selectedText = globalSelection.getSelectedText()
+				if (selectedText) {
+					key.preventDefault()
+					copyToClipboard(selectedText)
+					return
+				}
+			}
 		}
 	})
-
-	const handleSubmit = useCallback(
-		async (value: string) => {
-			const isLoading = isLoadingAtom.get()
-			if (!value.trim() || isLoading) return
-
-			inputAtom.get()?.setText("")
-
-			setShowCommands(false)
-			setCommandFilter("")
-			setSelectedCommand(0)
-
-			if (value.startsWith("/")) {
-				const commandName = value.split(" ")[0]
-				executeCommand(commandName)
-				return
-			}
-
-			const userMessage: Message = {
-				role: "user",
-				content: value,
-				timestamp: getTimestamp(),
-			}
-			messagesAtom.set([...messagesAtom.get(), userMessage])
-			isLoadingAtom.set(true)
-
-			setTimeout(() => {
-				const assistantMessage: Message = {
-					role: "assistant",
-					content: `Echo: ${value}`,
-					timestamp: getTimestamp(),
-				}
-				messagesAtom.set([...messagesAtom.get(), assistantMessage])
-				isLoadingAtom.set(false)
-			}, 500)
-		},
-		[executeCommand, setShowCommands, setCommandFilter, setSelectedCommand],
-	)
-
-	const handleInputChange = useCallback(
-		(value: string) => {
-			if (value.startsWith("/")) {
-				if (!stateRef.current.showCommands) {
-					setSelectedCommand(0)
-				}
-				setShowCommands(true)
-				setCommandFilter(value)
-			} else {
-				setShowCommands(false)
-				setCommandFilter("")
-				setSelectedCommand(0)
-			}
-		},
-		[setShowCommands, setCommandFilter, setSelectedCommand],
-	)
-
-	const handleNavigateUp = useCallback(() => {
-		const { filteredCommands: cmds, selectedCommand: sel } = stateRef.current
-		const newVal = sel > 0 ? sel - 1 : cmds.length - 1
-		stateRef.current.selectedCommand = newVal
-		setSelectedCommand(newVal)
-	}, [setSelectedCommand])
-
-	const handleNavigateDown = useCallback(() => {
-		const { filteredCommands: cmds, selectedCommand: sel } = stateRef.current
-		const newVal = sel < cmds.length - 1 ? sel + 1 : 0
-		stateRef.current.selectedCommand = newVal
-		setSelectedCommand(newVal)
-	}, [setSelectedCommand])
-
-	const handleCloseCommands = useCallback(() => {
-		setShowCommands(false)
-		setCommandFilter("")
-		inputAtom.get()?.setText("")
-	}, [setShowCommands, setCommandFilter])
-
-	const handleFilterChange = useCallback(
-		(value: string) => {
-			if (value.startsWith("/")) {
-				setCommandFilter(value)
-			} else {
-				setShowCommands(false)
-				setCommandFilter("")
-			}
-		},
-		[setShowCommands, setCommandFilter],
-	)
 
 	return (
 		<box
@@ -268,38 +100,68 @@ function Chat({ agentName }: { agentName: string }) {
 				backgroundColor: colors.bg,
 			}}
 		>
-			<Header agentName={agentName} />
+			<Header agentName={currentAgent || "no agent"} />
 			<MessageList />
 
-			{showCommands && <CommandPalette scrollRef={commandScrollRef} />}
+			{showCommands && <CommandPalette />}
 
-			<InputArea
-				stateRef={stateRef}
-				onSubmit={handleSubmit}
-				onInputChange={handleInputChange}
-				onSelectCommand={selectCommand}
-				onCloseCommands={handleCloseCommands}
-				onNavigateUp={handleNavigateUp}
-				onNavigateDown={handleNavigateDown}
-				onFilterChange={handleFilterChange}
-			/>
+			<InputArea />
 
 			<Footer />
 
 			{showDebug && <DebugOverlay />}
 			{showShortcuts && <ShortcutsPanel />}
+			{showAgentSelector && <AgentSelector />}
 		</box>
 	)
 }
 
 let renderer: Awaited<ReturnType<typeof createCliRenderer>> | null = null
 
-export async function runTui(agentName: string = "coding-agent") {
+export interface RunTuiOptions {
+	agentsPath: string
+	initialAgent?: string
+	cwd: string
+}
+
+export async function runTui(options: RunTuiOptions) {
+	const { agentsPath, initialAgent, cwd } = options
+
+	// Store cwd globally for agent loading
+	setCwd(cwd)
+
+	// Discover agents from the provided path
+	const agents = await discoverAgents(agentsPath)
+	availableAgentsAtom.set(agents)
+
+	// Set initial agent if provided and exists
+	if (initialAgent) {
+		const agentExists = agents.find((a) => a.name === initialAgent)
+		if (agentExists) {
+			currentAgentAtom.set(initialAgent)
+		} else {
+			messagesAtom.set([
+				createSystemMessage(
+					`Agent "${initialAgent}" not found. Available agents: ${agents.map((a) => a.name).join(", ") || "none"}`,
+				),
+			])
+		}
+	} else if (agents.length > 0) {
+		// Auto-select first agent if none specified
+		currentAgentAtom.set(agents[0].name)
+	} else {
+		messagesAtom.set([
+			createSystemMessage(
+				`No agents found in ${agentsPath}. Create agent files in this directory.`,
+			),
+		])
+	}
+
 	renderer = await createCliRenderer({
 		exitOnCtrlC: false,
 	})
 
-	createRoot(renderer).render(<Chat agentName={agentName} />)
+	createRoot(renderer).render(<Chat />)
 }
 
 export function exitTui() {
@@ -307,9 +169,25 @@ export function exitTui() {
 	process.exit(0)
 }
 
-// Run when executed directly
+// Run when executed directly (for testing without CLI)
 if (import.meta.main) {
 	const args = process.argv.slice(2)
-	const agentArg = args[0] || "coding-agent"
-	runTui(agentArg)
+
+	// Simple arg parsing for direct execution
+	let agentsPath = "./src/agents"
+	let initialAgent: string | undefined
+	let cwd = process.cwd()
+
+	for (let i = 0; i < args.length; i++) {
+		const arg = args[i]
+		if (arg === "--agents-path" && args[i + 1]) {
+			agentsPath = args[++i]
+		} else if (arg === "--cwd" && args[i + 1]) {
+			cwd = args[++i]
+		} else if (!arg.startsWith("-")) {
+			initialAgent = arg
+		}
+	}
+
+	runTui({ agentsPath, initialAgent, cwd })
 }

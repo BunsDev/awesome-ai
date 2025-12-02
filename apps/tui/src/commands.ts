@@ -1,6 +1,7 @@
 import type { Command } from "./types"
 
 export const COMMANDS: Omit<Command, "action">[] = [
+	{ name: "/agent", description: "Select an agent to use" },
 	{ name: "/help", description: "List all available commands" },
 	{ name: "/clear", description: "Clear terminal history" },
 	{ name: "/summarize", description: "Summarize the current conversation" },

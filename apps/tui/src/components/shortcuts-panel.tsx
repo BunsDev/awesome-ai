@@ -3,8 +3,10 @@ import { colors } from "../theme"
 
 const SHORTCUTS = {
 	navigation: [
+		{ action: "Select agent", keys: ["⌥ A"] },
 		{ action: "Toggle shortcuts panel", keys: ["⌥ S"] },
 		{ action: "Toggle debug overlay", keys: ["⌥ D"] },
+		{ action: "Copy selected text", keys: ["⌥ C"] },
 		{ action: "Previous command in history", keys: ["↑"] },
 		{ action: "Next command in history", keys: ["↓"] },
 		{ action: "Autocomplete command", keys: ["Tab"] },

@@ -1,20 +1,34 @@
 import { useAtom } from "@lfades/atom"
 import type { ScrollBoxRenderable } from "@opentui/core"
-import type { RefObject } from "react"
+import { useEffect, useRef } from "react"
 import { COMMANDS } from "../commands"
 import { colors } from "../theme"
 import { commandFilterAtom, selectedCommandAtom } from "./atoms"
 
-interface CommandPaletteProps {
-	scrollRef: RefObject<ScrollBoxRenderable | null>
-}
+const MAX_VISIBLE_ITEMS = 10
 
-export function CommandPalette({ scrollRef }: CommandPaletteProps) {
+export function CommandPalette() {
 	const [filter] = useAtom(commandFilterAtom)
-	const [selectedIndex] = useAtom(selectedCommandAtom)
+	const [selectedIndex, setSelectedIndex] = useAtom(selectedCommandAtom)
+	const scrollRef = useRef<ScrollBoxRenderable>(null)
 	const commands = COMMANDS.filter((cmd) =>
 		cmd.name.toLowerCase().includes(filter.toLowerCase()),
 	)
+
+	// Keep selectedIndex in bounds when filter changes
+	useEffect(() => {
+		if (selectedIndex >= commands.length && commands.length > 0) {
+			setSelectedIndex(commands.length - 1)
+		}
+	}, [commands.length, selectedIndex, setSelectedIndex])
+
+	// Scroll to keep selected command visible
+	useEffect(() => {
+		if (scrollRef.current && commands.length > 0) {
+			const scrollTop = Math.max(0, selectedIndex - MAX_VISIBLE_ITEMS + 1)
+			scrollRef.current.scrollTo(scrollTop)
+		}
+	}, [selectedIndex, commands.length])
 
 	if (commands.length === 0) return null
 

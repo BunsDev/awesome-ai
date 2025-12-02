@@ -95,7 +95,7 @@ describe("diff command", () => {
 		const project = await createProjectWithRegistry()
 
 		// First add the tool
-		await runCLI(["add", "@test/test-tool", "--type", "tools", "--yes"], {
+		await runCLI(["add", "@test/test-tool", "--tool", "--yes"], {
 			cwd: project.path,
 		})
 
@@ -115,7 +115,7 @@ describe("diff command", () => {
 		const project = await createProjectWithRegistry()
 
 		// First add the tool
-		await runCLI(["add", "@test/test-tool", "--type", "tools", "--yes"], {
+		await runCLI(["add", "@test/test-tool", "--tool", "--yes"], {
 			cwd: project.path,
 		})
 
@@ -171,7 +171,7 @@ describe("diff command", () => {
 		const project = await createProjectWithRegistry()
 
 		// Add the prompt
-		await runCLI(["add", "@test/test-prompt", "--type", "prompts", "--yes"], {
+		await runCLI(["add", "@test/test-prompt", "--prompt", "--yes"], {
 			cwd: project.path,
 		})
 
@@ -198,7 +198,7 @@ describe("diff command", () => {
 		const project = await createProjectWithRegistry()
 
 		// Add a simple agent (no dependencies)
-		await runCLI(["add", "@test/simple-agent", "--type", "agents", "--yes"], {
+		await runCLI(["add", "@test/simple-agent", "--yes"], {
 			cwd: project.path,
 		})
 
@@ -253,8 +253,7 @@ describe("diff command", () => {
 			[
 				"add",
 				"@test/test-tool",
-				"--type",
-				"tools",
+				"--tool",
 				"--yes",
 				"--cwd",
 				`${project.path}/subdir`,
