@@ -2,35 +2,56 @@
 
 Add agents, tools, and prompts from registries to your project.
 
+## Prerequisites
+
+The CLI requires [Bun](https://bun.sh) to be installed.
+
+```bash
+# Install Bun (macOS, Linux, WSL)
+curl -fsSL https://bun.sh/install | bash
+```
+
+For other installation methods, see the [Bun installation docs](https://bun.sh/docs/installation).
+
 ## Installation
+
+Install globally (recommended):
+
+```bash
+pnpm add -g awesome-ai
+```
+
+Any package manager works (npm, yarn, bun):
+
+```bash
+npm install -g awesome-ai
+yarn global add awesome-ai
+bun add -g awesome-ai
+```
+
+Installing it locally is also possible:
 
 ```bash
 pnpm add -D awesome-ai
-```
-
-Or run directly with npx:
-
-```bash
-npx awesome-ai <command>
 ```
 
 ## Quick Start
 
 ```bash
 # Initialize your project
-npx awesome-ai init
+awesome-ai init
 
 # Add an agent
-npx awesome-ai add coding-agent
+awesome-ai add coding-agent
 
 # Add a tool
-npx awesome-ai add bash --tool
+awesome-ai add bash --tool
 
 # Add a prompt
-npx awesome-ai add coding-agent --prompt
+awesome-ai add coding-agent --prompt
 
 # Run an agent interactively
-npx awesome-ai run coding-agent
+awesome-ai run coding-agent
 ```
 
 ---
@@ -42,7 +63,7 @@ npx awesome-ai run coding-agent
 Initialize your project and create an `agents.json` configuration file.
 
 ```bash
-npx awesome-ai init [options]
+awesome-ai init [options]
 ```
 
 **Options:**
@@ -58,13 +79,13 @@ npx awesome-ai init [options]
 
 ```bash
 # Interactive initialization
-npx awesome-ai init
+awesome-ai init
 
 # Non-interactive with defaults
-npx awesome-ai init --defaults
+awesome-ai init --defaults
 
 # Initialize in a specific directory
-npx awesome-ai init --cwd ./my-project
+awesome-ai init --cwd ./my-project
 ```
 
 ---
@@ -74,7 +95,7 @@ npx awesome-ai init --cwd ./my-project
 Add an agent, tool, or prompt to your project.
 
 ```bash
-npx awesome-ai add <items...> [options]
+awesome-ai add <items...> [options]
 ```
 
 **Arguments:**
@@ -100,25 +121,25 @@ npx awesome-ai add <items...> [options]
 
 ```bash
 # Add a single agent (default type)
-npx awesome-ai add coding-agent
+awesome-ai add coding-agent
 
 # Add multiple agents
-npx awesome-ai add coding-agent research-agent planning-agent
+awesome-ai add coding-agent research-agent planning-agent
 
 # Add a tool
-npx awesome-ai add bash --tool
+awesome-ai add bash --tool
 
 # Add multiple tools
-npx awesome-ai add bash edit write grep --tool
+awesome-ai add bash edit write grep --tool
 
 # Add a prompt
-npx awesome-ai add coding-agent --prompt
+awesome-ai add coding-agent --prompt
 
 # Add with overwrite
-npx awesome-ai add coding-agent --overwrite
+awesome-ai add coding-agent --overwrite
 
 # Add to a specific directory
-npx awesome-ai add coding-agent --cwd ./my-project
+awesome-ai add coding-agent --cwd ./my-project
 ```
 
 ---
@@ -128,7 +149,7 @@ npx awesome-ai add coding-agent --cwd ./my-project
 List available items from registries.
 
 ```bash
-npx awesome-ai list [options]
+awesome-ai list [options]
 ```
 
 **Options:**
@@ -143,16 +164,16 @@ npx awesome-ai list [options]
 
 ```bash
 # List all agents
-npx awesome-ai list
+awesome-ai list
 
 # List all tools
-npx awesome-ai list --type tools
+awesome-ai list --type tools
 
 # List all prompts
-npx awesome-ai list --type prompts
+awesome-ai list --type prompts
 
 # List from a custom registry
-npx awesome-ai list --registry @my-registry
+awesome-ai list --registry @my-registry
 ```
 
 ---
@@ -162,7 +183,7 @@ npx awesome-ai list --registry @my-registry
 Search items from registries by name or description.
 
 ```bash
-npx awesome-ai search [options]
+awesome-ai search [options]
 ```
 
 **Options:**
@@ -178,13 +199,13 @@ npx awesome-ai search [options]
 
 ```bash
 # Search for agents with "coding" in name or description
-npx awesome-ai search --query coding
+awesome-ai search --query coding
 
 # Search for tools
-npx awesome-ai search --query bash --type tools
+awesome-ai search --query bash --type tools
 
 # Search a custom registry
-npx awesome-ai search --query planning --registry @my-registry
+awesome-ai search --query planning --registry @my-registry
 ```
 
 ---
@@ -194,7 +215,7 @@ npx awesome-ai search --query planning --registry @my-registry
 View detailed information about specific items from the registry.
 
 ```bash
-npx awesome-ai view <items...> [options]
+awesome-ai view <items...> [options]
 ```
 
 **Arguments:**
@@ -214,13 +235,13 @@ npx awesome-ai view <items...> [options]
 
 ```bash
 # View an agent's details
-npx awesome-ai view coding-agent --type agents
+awesome-ai view coding-agent --type agents
 
 # View multiple tools
-npx awesome-ai view bash edit --type tools
+awesome-ai view bash edit --type tools
 
 # View a prompt
-npx awesome-ai view coding-agent --type prompts
+awesome-ai view coding-agent --type prompts
 ```
 
 ---
@@ -230,7 +251,7 @@ npx awesome-ai view coding-agent --type prompts
 Check for updates by comparing local files against the registry.
 
 ```bash
-npx awesome-ai diff <item> [options]
+awesome-ai diff <item> [options]
 ```
 
 **Arguments:**
@@ -250,13 +271,13 @@ npx awesome-ai diff <item> [options]
 
 ```bash
 # Check if an agent has updates
-npx awesome-ai diff coding-agent --type agents
+awesome-ai diff coding-agent --type agents
 
 # Check a tool for updates
-npx awesome-ai diff bash --type tools
+awesome-ai diff bash --type tools
 
 # Check a prompt for updates
-npx awesome-ai diff coding-agent --type prompts
+awesome-ai diff coding-agent --type prompts
 ```
 
 ---
@@ -266,7 +287,7 @@ npx awesome-ai diff coding-agent --type prompts
 Start an interactive TUI (Terminal User Interface) chat session with an agent.
 
 ```bash
-npx awesome-ai run [agent] [options]
+awesome-ai run [agent] [options]
 ```
 
 **Arguments:**
@@ -287,13 +308,13 @@ npx awesome-ai run [agent] [options]
 
 ```bash
 # Run the default agent interactively
-npx awesome-ai run
+awesome-ai run
 
 # Run a specific agent
-npx awesome-ai run coding-agent
+awesome-ai run coding-agent
 
 # Run an agent in a specific directory
-npx awesome-ai run coding-agent --cwd ./my-project
+awesome-ai run coding-agent --cwd ./my-project
 ```
 
 ---
@@ -368,7 +389,7 @@ You can add custom registries to your `agents.json`:
 Override the default registry URL:
 
 ```bash
-AWESOME_AI_REGISTRY_URL=https://my-registry.com npx awesome-ai list
+AWESOME_AI_REGISTRY_URL=https://my-registry.com awesome-ai list
 ```
 
 The CLI checks `AWESOME_AI_REGISTRY_URL` first, then falls back to `REGISTRY_URL`.
@@ -477,62 +498,62 @@ Items in the registry follow this schema:
 ```bash
 # Create a new project
 mkdir my-ai-project && cd my-ai-project
-npm init -y
+pnpm init
 
 # Initialize the CLI
-npx awesome-ai init
+awesome-ai init
 
 # Add the coding agent with all its dependencies
-npx awesome-ai add coding-agent
+awesome-ai add coding-agent
 ```
 
 ### Working with Tools
 
 ```bash
 # List available tools
-npx awesome-ai list --type tools
+awesome-ai list --type tools
 
 # Add multiple tools at once
-npx awesome-ai add bash edit write grep --tool
+awesome-ai add bash edit write grep --tool
 
 # View tool details
-npx awesome-ai view edit --type tools
+awesome-ai view edit --type tools
 
 # Check for tool updates
-npx awesome-ai diff edit --type tools
+awesome-ai diff edit --type tools
 
 # Update a tool
-npx awesome-ai add edit --tool --overwrite
+awesome-ai add edit --tool --overwrite
 ```
 
 ### Using Multiple Registries
 
 ```bash
 # Add an agent from a custom registry
-npx awesome-ai add @my-registry/custom-agent
+awesome-ai add @my-registry/custom-agent
 
 # List items from a specific registry
-npx awesome-ai list --registry @my-registry
+awesome-ai list --registry @my-registry
 ```
 
 ### Running Agents Interactively
 
 ```bash
 # Start an interactive session with the coding agent
-npx awesome-ai run coding-agent
+awesome-ai run coding-agent
 
 # Start with a different working directory
-npx awesome-ai run coding-agent --cwd ./my-project
+awesome-ai run coding-agent --cwd ./my-project
 ```
 
 ### Checking for Updates
 
 ```bash
 # See what changed in an agent
-npx awesome-ai diff coding-agent --type agents
+awesome-ai diff coding-agent --type agents
 
 # Update by overwriting
-npx awesome-ai add coding-agent --overwrite
+awesome-ai add coding-agent --overwrite
 ```
 
 ---

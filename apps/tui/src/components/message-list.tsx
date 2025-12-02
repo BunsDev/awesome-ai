@@ -4,6 +4,7 @@ import { colors } from "../theme"
 import { formatTimestamp, getMessageReasoning, getMessageText } from "../types"
 import { isLoadingAtom, type MessageAtom, messagesAtom } from "./atoms"
 import { ThinkingSection } from "./thinking-section"
+import { type ToolData, ToolPart } from "./tool-part"
 
 // GitHub Dark-inspired syntax style for markdown
 const syntaxStyle = SyntaxStyle.fromStyles({
@@ -82,33 +83,14 @@ function Message({ messageAtom }: { messageAtom: MessageAtom }) {
 
 					{/* Render tool parts */}
 					{msg.parts
-						.filter((part) => part.type.startsWith("tool-"))
+						.filter(
+							(part) =>
+								part.type.startsWith("tool-") || part.type === "dynamic-tool",
+						)
 						.map((part, idx) => {
-							const toolPart = part as {
-								type: string
-								toolCallId: string
-								state: string
-								input?: unknown
-								output?: unknown
-							}
-							const toolName = toolPart.type.replace("tool-", "")
+							const toolPart = part as ToolData
 							return (
-								<box
-									key={toolPart.toolCallId || idx}
-									style={{
-										marginTop: 1,
-										border: true,
-										borderStyle: "single",
-										borderColor: colors.border,
-										paddingLeft: 1,
-										paddingRight: 1,
-									}}
-								>
-									<text>
-										<span fg={colors.green}>{toolName}</span>
-										<span fg={colors.muted}> ({toolPart.state})</span>
-									</text>
-								</box>
+								<ToolPart key={toolPart.toolCallId || idx} data={toolPart} />
 							)
 						})}
 				</box>

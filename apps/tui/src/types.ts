@@ -83,3 +83,68 @@ export function getMessageReasoning(message: TUIMessage): string | undefined {
 	)
 	return reasoningPart?.text
 }
+
+/**
+ * Standard tool output shape following our registry schema.
+ * All tools output { status, message, ...additionalFields }
+ */
+export interface ToolOutputBase {
+	status: "pending" | "streaming" | "success" | "error"
+	message: string
+}
+
+/**
+ * Extract the message from a tool output.
+ * Works with any tool that follows our standard output schema.
+ */
+export function getToolMessage(output: unknown): string | undefined {
+	if (
+		output &&
+		typeof output === "object" &&
+		"message" in output &&
+		typeof output.message === "string"
+	) {
+		return output.message
+	}
+	return undefined
+}
+
+/**
+ * Extract the status from a tool output.
+ */
+export function getToolStatus(
+	output: unknown,
+): ToolOutputBase["status"] | undefined {
+	if (
+		output &&
+		typeof output === "object" &&
+		"status" in output &&
+		typeof output.status === "string"
+	) {
+		const status = output.status
+		if (
+			status === "pending" ||
+			status === "streaming" ||
+			status === "success" ||
+			status === "error"
+		) {
+			return status
+		}
+	}
+	return undefined
+}
+
+/**
+ * Extract the error message from a tool output.
+ */
+export function getToolError(output: unknown): string | undefined {
+	if (
+		output &&
+		typeof output === "object" &&
+		"error" in output &&
+		typeof output.error === "string"
+	) {
+		return output.error
+	}
+	return undefined
+}
