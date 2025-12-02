@@ -1,8 +1,8 @@
 import { useAtom } from "@lfades/atom"
 import { RGBA, SyntaxStyle } from "@opentui/core"
 import { colors } from "../theme"
-import { getMessageReasoning, getMessageText } from "../types"
-import { isLoadingAtom, messagesAtom } from "./atoms"
+import { formatTimestamp, getMessageReasoning, getMessageText } from "../types"
+import { isLoadingAtom, type MessageAtom, messagesAtom } from "./atoms"
 import { ThinkingSection } from "./thinking-section"
 
 // GitHub Dark-inspired syntax style for markdown
@@ -48,8 +48,77 @@ const syntaxStyle = SyntaxStyle.fromStyles({
 	default: { fg: RGBA.fromHex("#E6EDF3") },
 })
 
+function Message({ messageAtom }: { messageAtom: MessageAtom }) {
+	const [msg] = useAtom(messageAtom)
+	const text = getMessageText(msg)
+	const reasoning = getMessageReasoning(msg)
+	const timestamp = msg.metadata?.timestamp
+		? formatTimestamp(msg.metadata.timestamp)
+		: ""
+
+	return (
+		<box
+			style={{
+				marginBottom: 1,
+				backgroundColor: msg.role === "assistant" ? colors.bgLight : undefined,
+				paddingLeft: msg.role === "assistant" ? 1 : 0,
+				paddingRight: msg.role === "assistant" ? 1 : 0,
+			}}
+		>
+			{msg.role === "system" ? (
+				<text fg={colors.muted}>
+					{text} <span fg={colors.muted}>{timestamp}</span>
+				</text>
+			) : msg.role === "user" ? (
+				<text>
+					<span fg={colors.text}>{text}</span>
+					<span fg={colors.muted}> {timestamp}</span>
+				</text>
+			) : (
+				<box style={{ flexDirection: "column" }}>
+					{reasoning && <ThinkingSection thinking={reasoning} />}
+					<code content={text} filetype="markdown" syntaxStyle={syntaxStyle} />
+					<text fg={colors.muted}>{timestamp}</text>
+
+					{/* Render tool parts */}
+					{msg.parts
+						.filter((part) => part.type.startsWith("tool-"))
+						.map((part, idx) => {
+							const toolPart = part as {
+								type: string
+								toolCallId: string
+								state: string
+								input?: unknown
+								output?: unknown
+							}
+							const toolName = toolPart.type.replace("tool-", "")
+							return (
+								<box
+									key={toolPart.toolCallId || idx}
+									style={{
+										marginTop: 1,
+										border: true,
+										borderStyle: "single",
+										borderColor: colors.border,
+										paddingLeft: 1,
+										paddingRight: 1,
+									}}
+								>
+									<text>
+										<span fg={colors.green}>{toolName}</span>
+										<span fg={colors.muted}> ({toolPart.state})</span>
+									</text>
+								</box>
+							)
+						})}
+				</box>
+			)}
+		</box>
+	)
+}
+
 export function MessageList() {
-	const [messages] = useAtom(messagesAtom)
+	const [messageAtoms] = useAtom(messagesAtom)
 	const [isLoading] = useAtom(isLoadingAtom)
 
 	return (
@@ -62,77 +131,9 @@ export function MessageList() {
 			}}
 			focused={false}
 		>
-			{messages.map((msg) => {
-				const text = getMessageText(msg)
-				const reasoning = getMessageReasoning(msg)
-				const timestamp = msg.metadata?.timestamp ?? ""
-
-				return (
-					<box
-						key={msg.id}
-						style={{
-							marginBottom: 1,
-							backgroundColor:
-								msg.role === "assistant" ? colors.bgLight : undefined,
-							paddingLeft: msg.role === "assistant" ? 1 : 0,
-							paddingRight: msg.role === "assistant" ? 1 : 0,
-						}}
-					>
-						{msg.role === "system" ? (
-							<text fg={colors.muted}>
-								{text} <span fg={colors.muted}>{timestamp}</span>
-							</text>
-						) : msg.role === "user" ? (
-							<text>
-								<span fg={colors.text}>{text}</span>
-								<span fg={colors.muted}> {timestamp}</span>
-							</text>
-						) : (
-							<box style={{ flexDirection: "column" }}>
-								{reasoning && <ThinkingSection thinking={reasoning} />}
-								<code
-									content={text}
-									filetype="markdown"
-									syntaxStyle={syntaxStyle}
-								/>
-								<text fg={colors.muted}>{timestamp}</text>
-
-								{/* Render tool parts */}
-								{msg.parts
-									.filter((part) => part.type.startsWith("tool-"))
-									.map((part, idx) => {
-										const toolPart = part as {
-											type: string
-											toolCallId: string
-											state: string
-											input?: unknown
-											output?: unknown
-										}
-										const toolName = toolPart.type.replace("tool-", "")
-										return (
-											<box
-												key={toolPart.toolCallId || idx}
-												style={{
-													marginTop: 1,
-													border: true,
-													borderStyle: "single",
-													borderColor: colors.border,
-													paddingLeft: 1,
-													paddingRight: 1,
-												}}
-											>
-												<text>
-													<span fg={colors.green}>{toolName}</span>
-													<span fg={colors.muted}> ({toolPart.state})</span>
-												</text>
-											</box>
-										)
-									})}
-							</box>
-						)}
-					</box>
-				)
-			})}
+			{messageAtoms.map((msgAtom) => (
+				<Message key={msgAtom.get().id} messageAtom={msgAtom} />
+			))}
 			{isLoading && (
 				<box
 					style={{

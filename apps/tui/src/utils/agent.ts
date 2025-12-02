@@ -1,10 +1,10 @@
 import type { Agent, ModelMessage } from "ai"
 import {
+	addMessage,
 	availableAgentsAtom,
 	currentAgentAtom,
 	debugLog,
 	isLoadingAtom,
-	messagesAtom,
 	selectedModelAtom,
 } from "../components/atoms"
 import {
@@ -77,18 +77,17 @@ export async function loadAgent(agentName: string): Promise<boolean> {
 
 export async function sendMessage(userPrompt: string): Promise<void> {
 	if (!currentAgentInstance) {
-		messagesAtom.set([
-			...messagesAtom.get(),
+		addMessage(
 			createSystemMessage(
 				"No agent loaded. Select an agent with /agent or ⌥ A",
 			),
-		])
+		)
 		return
 	}
 
 	// Add user message
 	const userMessage = createUserMessage(userPrompt)
-	messagesAtom.set([...messagesAtom.get(), userMessage])
+	addMessage(userMessage)
 	isLoadingAtom.set(true)
 
 	try {
@@ -107,25 +106,17 @@ export async function sendMessage(userPrompt: string): Promise<void> {
 		let reasoningText = ""
 		let responseText = ""
 
-		const updateAssistantMessage = () => {
-			const messages = messagesAtom.get()
-			const lastMessage = messages[messages.length - 1]
+		// Create assistant message atom once and keep reference for streaming updates
+		const assistantMessage = addMessage(createAssistantMessage("", undefined))
 
-			// If the last message is already our assistant response, update it
-			if (lastMessage?.role === "assistant") {
-				const updatedMessage = createAssistantMessage(
-					responseText,
-					reasoningText || undefined,
-				)
-				updatedMessage.id = lastMessage.id // Keep same ID
-				messagesAtom.set([...messages.slice(0, -1), updatedMessage])
-			} else {
-				// Otherwise add a new assistant message
-				messagesAtom.set([
-					...messages,
-					createAssistantMessage(responseText, reasoningText || undefined),
-				])
-			}
+		const updateAssistantMessage = () => {
+			const updatedMessage = createAssistantMessage(
+				responseText,
+				reasoningText || undefined,
+			)
+
+			updatedMessage.id = assistantMessage.get().id
+			assistantMessage.set(updatedMessage)
 		}
 
 		for await (const chunk of result.fullStream) {
@@ -155,12 +146,11 @@ export async function sendMessage(userPrompt: string): Promise<void> {
 		const response = await result.response
 		conversationMessages.push(...response.messages)
 	} catch (error) {
-		messagesAtom.set([
-			...messagesAtom.get(),
+		addMessage(
 			createSystemMessage(
 				`Error: ${error instanceof Error ? error.message : String(error)}`,
 			),
-		])
+		)
 	} finally {
 		isLoadingAtom.set(false)
 	}

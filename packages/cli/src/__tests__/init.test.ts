@@ -38,7 +38,7 @@ describe("init command", () => {
 		expect(result.stdout).toContain("Project initialization completed")
 	})
 
-	it("overwrites existing config with --force", async () => {
+	it("overwrites existing config with --defaults", async () => {
 		const project = await createTestProject({
 			packageJson: { name: "test-project" },
 			tsconfig: true,
@@ -58,16 +58,48 @@ describe("init command", () => {
 		const oldConfig = JSON.parse(await project.readFile("agents.json"))
 		expect(oldConfig.aliases.agents).toBe("~/old-agents")
 
-		// Run init with force
-		const result = await runCLI(["init", "--yes", "--defaults", "--force"], {
+		// Run init with --defaults to reset to default config
+		const result = await runCLI(["init", "--yes", "--defaults"], {
 			cwd: project.path,
 		})
 
 		expect(result.exitCode).toBe(0)
 
-		// Verify config was overwritten
+		// Verify config was overwritten with defaults
 		const newConfig = JSON.parse(await project.readFile("agents.json"))
 		expect(newConfig.aliases.agents).toBe("@/agents")
+	})
+
+	it("works with existing config in interactive mode (CI auto-accepts)", async () => {
+		const project = await createTestProject({
+			packageJson: { name: "test-project" },
+			tsconfig: true,
+			files: {
+				"agents.json": JSON.stringify({
+					$schema: "https://awesome-ai.com/schema.json",
+					tsx: true,
+					aliases: {
+						agents: "~/my-agents",
+						tools: "~/my-tools",
+						prompts: "~/my-prompts",
+					},
+				}),
+			},
+		})
+
+		// Run init WITHOUT --defaults to trigger interactive prompts
+		// In CI mode, prompts auto-accepts initial values from existingConfig
+		const result = await runCLI(["init", "--yes"], {
+			cwd: project.path,
+		})
+
+		expect(result.exitCode).toBe(0)
+
+		// Verify existing aliases were preserved (prompts used existingConfig as initial values)
+		const newConfig = JSON.parse(await project.readFile("agents.json"))
+		expect(newConfig.aliases.agents).toBe("~/my-agents")
+		expect(newConfig.aliases.tools).toBe("~/my-tools")
+		expect(newConfig.aliases.prompts).toBe("~/my-prompts")
 	})
 
 	it("respects --cwd option", async () => {

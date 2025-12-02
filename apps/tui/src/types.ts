@@ -2,7 +2,7 @@ import type { UIMessage, UIMessagePart } from "ai"
 
 // Message metadata includes timestamp for display
 export interface TUIMessageMetadata {
-	timestamp: string
+	timestamp: number
 }
 
 export type TUIMessage = UIMessage<TUIMessageMetadata>
@@ -18,16 +18,16 @@ export interface Command {
 	action: () => void
 }
 
-export function getTimestamp(): string {
-	const now = new Date()
-	return `[${now.toLocaleTimeString("en-US", { hour12: false })}]`
+export function formatTimestamp(timestamp: number): string {
+	const date = new Date(timestamp)
+	return `[${date.toLocaleTimeString("en-US", { hour12: false })}]`
 }
 
 export function createUserMessage(text: string): TUIMessage {
 	return {
 		id: crypto.randomUUID(),
 		role: "user",
-		metadata: { timestamp: getTimestamp() },
+		metadata: { timestamp: Date.now() },
 		parts: [{ type: "text", text }],
 	}
 }
@@ -47,7 +47,7 @@ export function createAssistantMessage(
 	return {
 		id: crypto.randomUUID(),
 		role: "assistant",
-		metadata: { timestamp: getTimestamp() },
+		metadata: { timestamp: Date.now() },
 		parts,
 	}
 }
@@ -56,7 +56,7 @@ export function createSystemMessage(text: string): TUIMessage {
 	return {
 		id: crypto.randomUUID(),
 		role: "system",
-		metadata: { timestamp: getTimestamp() },
+		metadata: { timestamp: Date.now() },
 		parts: [{ type: "text", text }],
 	}
 }

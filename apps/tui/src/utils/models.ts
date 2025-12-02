@@ -45,8 +45,8 @@ const FALLBACK_MODELS: AvailableModel[] = [
 		provider: "anthropic",
 	},
 	{
-		id: "anthropic/claude-opus-4-20250514",
-		name: "Claude Opus 4",
+		id: "anthropic/claude-opus-4.5",
+		name: "Claude Opus 4.5",
 		provider: "anthropic",
 	},
 	{

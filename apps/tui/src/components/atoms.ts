@@ -1,15 +1,17 @@
-import { atom } from "@lfades/atom"
+import { type Atom, atom } from "@lfades/atom"
 import type { TextareaRenderable } from "@opentui/core"
 import type { TUIMessage } from "../types"
 import type { DiscoveredAgent } from "../utils/agent-discovery"
 import type { AvailableModel } from "../utils/models"
 
+export type MessageAtom = Atom<TUIMessage>
+
 // Test conversation for development using UIMessage structure
-const testConversation: TUIMessage[] = [
+const _testConversation: TUIMessage[] = [
 	{
 		id: "msg-1",
 		role: "system",
-		metadata: { timestamp: "[09:00:01]" },
+		metadata: { timestamp: 1700000001000 },
 		parts: [
 			{ type: "text", text: "agent v1.0.0 initialized. ready for input." },
 		],
@@ -17,13 +19,13 @@ const testConversation: TUIMessage[] = [
 	{
 		id: "msg-2",
 		role: "user",
-		metadata: { timestamp: "[09:00:15]" },
+		metadata: { timestamp: 1700000015000 },
 		parts: [{ type: "text", text: "Help me create a todo app in TypeScript" }],
 	},
 	{
 		id: "msg-3",
 		role: "assistant",
-		metadata: { timestamp: "[09:00:18]" },
+		metadata: { timestamp: 1700000018000 },
 		parts: [
 			{
 				type: "reasoning",
@@ -68,7 +70,7 @@ Would you like me to continue with the implementation?`,
 	{
 		id: "msg-4",
 		role: "user",
-		metadata: { timestamp: "[09:00:45]" },
+		metadata: { timestamp: 1700000045000 },
 		parts: [
 			{
 				type: "text",
@@ -79,7 +81,7 @@ Would you like me to continue with the implementation?`,
 	{
 		id: "msg-5",
 		role: "assistant",
-		metadata: { timestamp: "[09:00:52]" },
+		metadata: { timestamp: 1700000052000 },
 		parts: [
 			{
 				type: "reasoning",
@@ -153,7 +155,7 @@ class TodoService {
 	{
 		id: "msg-6",
 		role: "user",
-		metadata: { timestamp: "[09:01:20]" },
+		metadata: { timestamp: 1700000080000 },
 		parts: [
 			{ type: "text", text: "Can you add filtering by completed status?" },
 		],
@@ -161,7 +163,7 @@ class TodoService {
 	{
 		id: "msg-7",
 		role: "assistant",
-		metadata: { timestamp: "[09:01:25]" },
+		metadata: { timestamp: 1700000085000 },
 		parts: [
 			{
 				type: "text",
@@ -191,13 +193,13 @@ Would you also like me to add **sorting** or **search** functionality?`,
 	{
 		id: "msg-8",
 		role: "user",
-		metadata: { timestamp: "[09:01:50]" },
+		metadata: { timestamp: 1700000110000 },
 		parts: [{ type: "text", text: "Yes, add search by title" }],
 	},
 	{
 		id: "msg-9",
 		role: "assistant",
-		metadata: { timestamp: "[09:01:55]" },
+		metadata: { timestamp: 1700000115000 },
 		parts: [
 			{
 				type: "reasoning",
@@ -260,13 +262,22 @@ service.list({ completed: false, search: "bug" })
 	},
 ]
 
-// Start with empty messages - test conversation kept for development reference
-export const messagesAtom = atom<TUIMessage[]>([])
+export const messagesAtom = atom<MessageAtom[]>([])
+
+export function addMessage(message: TUIMessage): MessageAtom {
+	const messageAtom = atom(message)
+	messagesAtom.set([...messagesAtom.get(), messageAtom])
+	return messageAtom
+}
+
+export function clearMessages() {
+	messagesAtom.set([])
+}
 
 export const isLoadingAtom = atom(false)
 export const showDebugAtom = atom(false)
 export const debugLogsAtom = atom<string[]>([])
-export const selectedModelAtom = atom("claude-sonnet-4-20250514")
+export const selectedModelAtom = atom("anthropic/claude-opus-4.5")
 export const showCommandsAtom = atom(false)
 export const commandFilterAtom = atom("")
 export const selectedCommandAtom = atom(0)

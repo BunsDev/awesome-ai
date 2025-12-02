@@ -2,9 +2,12 @@ import { useAtom } from "@lfades/atom"
 import { useState } from "react"
 import { COMMANDS } from "../commands"
 import { colors } from "../theme"
-import { createSystemMessage } from "../types"
+import { createSystemMessage, type TUIMessage } from "../types"
 import { resetConversation, sendMessage } from "../utils/agent"
+import { copyToClipboard } from "../utils/clipboard"
 import {
+	addMessage,
+	clearMessages,
 	commandFilterAtom,
 	currentAgentAtom,
 	inputAtom,
@@ -26,8 +29,8 @@ const chatKeyBindings = [
 const MAX_INPUT_LINES = 10
 
 function executeCommand(commandName: string) {
-	const addSystemMessage = (content: string) => {
-		messagesAtom.set([...messagesAtom.get(), createSystemMessage(content)])
+	const addSystemMsg = (content: string) => {
+		addMessage(createSystemMessage(content))
 	}
 
 	const currentAgent = currentAgentAtom.get()
@@ -40,32 +43,53 @@ function executeCommand(commandName: string) {
 			showModelSelectorAtom.set(true)
 			break
 		case "/help":
-			addSystemMessage(
+			addSystemMsg(
 				`Available commands:\n${COMMANDS.map((c) => `  ${c.name} - ${c.description}`).join("\n")}`,
 			)
 			break
 		case "/clear":
-			messagesAtom.set([createSystemMessage("Terminal cleared.")])
+			clearMessages()
+			addMessage(createSystemMessage("Terminal cleared."))
 			resetConversation()
 			break
 		case "/summarize":
-			addSystemMessage("Summarizing conversation... (not implemented)")
+			addSystemMsg("Summarizing conversation... (not implemented)")
 			break
-		case "/export":
-			addSystemMessage("Exporting conversation... (not implemented)")
+		case "/export": {
+			const messages = messagesAtom.get().reduce<TUIMessage[]>((acc, atom) => {
+				const msg = atom.get()
+				if (msg.role !== "system") acc.push(msg)
+				return acc
+			}, [])
+
+			if (messages.length === 0) {
+				addSystemMsg("No messages to export.")
+				break
+			}
+
+			const json = JSON.stringify(messages, null, 2)
+
+			copyToClipboard(json).then((success) => {
+				if (success) {
+					addSystemMsg(`Exported ${messages.length} messages to clipboard.`)
+				} else {
+					addSystemMsg("Failed to copy to clipboard.")
+				}
+			})
 			break
+		}
 		case "/time":
-			addSystemMessage(`Current time: ${new Date().toLocaleString()}`)
+			addSystemMsg(`Current time: ${new Date().toLocaleString()}`)
 			break
 		case "/version": {
 			const model = selectedModelAtom.get()
-			addSystemMessage(
+			addSystemMsg(
 				`Agent: ${currentAgent || "none"}\nModel: ${model}\nVersion: 1.0.0`,
 			)
 			break
 		}
 		default:
-			addSystemMessage(`Unknown command: ${commandName}`)
+			addSystemMsg(`Unknown command: ${commandName}`)
 	}
 }
 

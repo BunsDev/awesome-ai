@@ -22,7 +22,7 @@ export async function copyToClipboard(text: string): Promise<boolean> {
 
 		if (os === "linux") {
 			// Try Wayland first
-			if (process.env["WAYLAND_DISPLAY"] && Bun.which("wl-copy")) {
+			if (process.env.WAYLAND_DISPLAY && Bun.which("wl-copy")) {
 				const proc = Bun.spawn(["wl-copy"], {
 					stdin: "pipe",
 					stdout: "ignore",

@@ -6,9 +6,9 @@ import {
 	handleAgentSelectorKey,
 } from "./components/agent-selector"
 import {
+	addMessage,
 	availableAgentsAtom,
 	currentAgentAtom,
-	messagesAtom,
 	showAgentSelectorAtom,
 	showCommandsAtom,
 	showDebugAtom,
@@ -160,21 +160,21 @@ export async function runTui(options: RunTuiOptions) {
 		if (agentExists) {
 			currentAgentAtom.set(initialAgent)
 		} else {
-			messagesAtom.set([
+			addMessage(
 				createSystemMessage(
 					`Agent "${initialAgent}" not found. Available agents: ${agents.map((a) => a.name).join(", ") || "none"}`,
 				),
-			])
+			)
 		}
 	} else if (agents.length > 0) {
 		// Auto-select first agent if none specified
 		currentAgentAtom.set(agents[0].name)
 	} else {
-		messagesAtom.set([
+		addMessage(
 			createSystemMessage(
 				`No agents found in ${agentsPath}. Create agent files in this directory.`,
 			),
-		])
+		)
 	}
 
 	renderer = await createCliRenderer({
