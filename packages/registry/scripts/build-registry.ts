@@ -13,6 +13,7 @@
 import { promises as fs } from "fs"
 import path from "path"
 import { z } from "zod"
+import { extractImports } from "./lib/extract-imports"
 
 const SRC_DIR = path.resolve(import.meta.dirname, "../src")
 const OUTPUT_DIR = path.resolve(import.meta.dirname, "../registry")
@@ -74,71 +75,6 @@ function toTitleCase(str: string): string {
 		.split(/[-_]/)
 		.map((word) => word.charAt(0).toUpperCase() + word.slice(1))
 		.join(" ")
-}
-
-function extractImports(content: string): {
-	npmDeps: string[]
-	registryDeps: string[]
-	toolLibFiles: string[]
-	agentLibFiles: string[]
-} {
-	const npmDeps: string[] = []
-	const registryDeps: string[] = []
-	const toolLibFiles: string[] = []
-	const agentLibFiles: string[] = []
-
-	// Match import statements
-	const importRegex =
-		/import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+)?["']([^"']+)["']/g
-	let match = importRegex.exec(content)
-
-	while (match !== null) {
-		const importPath = match[1]!
-
-		// Skip relative imports (handled separately for lib files)
-		if (importPath.startsWith("./") || importPath.startsWith("../")) {
-			match = importRegex.exec(content)
-			continue
-		}
-
-		// Check for @/ alias imports (registry dependencies)
-		if (importPath.startsWith("@/tools/lib/")) {
-			const libName = importPath.replace("@/tools/lib/", "")
-			toolLibFiles.push(libName)
-		} else if (importPath.startsWith("@/agents/lib/")) {
-			const libName = importPath.replace("@/agents/lib/", "")
-			agentLibFiles.push(libName)
-		} else if (importPath.startsWith("@/tools/")) {
-			const toolName = importPath.replace("@/tools/", "")
-			registryDeps.push(`tools:${toolName}`)
-		} else if (importPath.startsWith("@/prompts/")) {
-			const promptName = importPath.replace("@/prompts/", "")
-			registryDeps.push(`prompts:${promptName}`)
-		} else if (importPath.startsWith("@/agents/")) {
-			const agentName = importPath.replace("@/agents/", "")
-			registryDeps.push(`agents:${agentName}`)
-		} else if (
-			!importPath.startsWith("node:") &&
-			!importPath.startsWith("@/")
-		) {
-			// External npm package
-			const packageName = importPath.startsWith("@")
-				? importPath.split("/").slice(0, 2).join("/")
-				: importPath.split("/")[0]!
-
-			if (NPM_PACKAGES.has(packageName)) {
-				npmDeps.push(packageName)
-			}
-		}
-		match = importRegex.exec(content)
-	}
-
-	return {
-		npmDeps: [...new Set(npmDeps)],
-		registryDeps: [...new Set(registryDeps)],
-		toolLibFiles: [...new Set(toolLibFiles)],
-		agentLibFiles: [...new Set(agentLibFiles)],
-	}
 }
 
 function extractDescription(
@@ -221,8 +157,8 @@ async function processFile(
 	}
 
 	const content = await fs.readFile(filePath, "utf-8")
-	const { npmDeps, registryDeps, toolLibFiles, agentLibFiles } =
-		extractImports(content)
+	const { npmDeps, npmDevDeps, registryDeps, toolLibFiles, agentLibFiles } =
+		extractImports(content, { npmPackages: NPM_PACKAGES })
 	const description = extractDescription(content, name, type)
 
 	const registryType = `registry:${type.slice(0, -1)}` // tools -> registry:tool
@@ -269,6 +205,10 @@ async function processFile(
 		item.dependencies = npmDeps
 	}
 
+	if (npmDevDeps.length > 0) {
+		item.devDependencies = npmDevDeps
+	}
+
 	if (registryDeps.length > 0) {
 		item.registryDependencies = registryDeps
 	}
@@ -313,7 +253,7 @@ async function writeRegistryItem(
 	const result = registryItemSchema.safeParse(item)
 	if (!result.success) {
 		console.error(`  ✗ ${type}/${item.name}.json - validation failed:`)
-		for (const error of result.error.errors) {
+		for (const error of result.error.issues) {
 			console.error(`    - ${error.path.join(".")}: ${error.message}`)
 		}
 		throw new Error(`Invalid registry item: ${item.name}`)
@@ -346,7 +286,7 @@ async function writeRegistryIndex(
 	const result = registryIndexSchema.safeParse(index)
 	if (!result.success) {
 		console.error(`  ✗ ${type}/registry.json - validation failed:`)
-		for (const error of result.error.errors) {
+		for (const error of result.error.issues) {
 			console.error(`    - ${error.path.join(".")}: ${error.message}`)
 		}
 		throw new Error(`Invalid registry index for ${type}`)

@@ -103,9 +103,6 @@ importers:
       '@ai-sdk/react':
         specifier: ^3.0.0-beta.88
         version: 3.0.0-beta.88(react@19.1.0)(zod@4.1.12)
-      '@awesome-ai/registry':
-        specifier: workspace:*
-        version: link:../../packages/registry
       '@codemirror/lang-javascript':
         specifier: ^6.2.2
         version: 6.2.4
@@ -241,6 +238,9 @@ importers:
       usehooks-ts:
         specifier: ^3.1.0
         version: 3.1.1(react@19.1.0)
+      uuid:
+        specifier: ^13.0.0
+        version: 13.0.0
       zod:
         specifier: 'catalog:'
         version: 4.1.12
@@ -269,6 +269,9 @@ importers:
       '@types/react-syntax-highlighter':
         specifier: ^15.5.13
         version: 15.5.13
+      '@types/unzipper':
+        specifier: ^0.10.11
+        version: 0.10.11
       tailwindcss:
         specifier: ^4
         version: 4.1.16
@@ -354,9 +357,6 @@ importers:
       unzipper:
         specifier: ^0.12.3
         version: 0.12.3
-      uuid:
-        specifier: ^13.0.0
-        version: 13.0.0
       zod:
         specifier: 'catalog:'
         version: 4.1.12

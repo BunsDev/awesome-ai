@@ -5,12 +5,12 @@ import * as path from "path"
 
 const RIPGREP_VERSION = "14.1.1"
 
-const PLATFORM: Record<string, { name: string; ext: "tar.gz" | "zip" }> = {
-	"arm64-darwin": { name: "aarch64-apple-darwin", ext: "tar.gz" },
-	"arm64-linux": { name: "aarch64-unknown-linux-gnu", ext: "tar.gz" },
-	"x64-darwin": { name: "x86_64-apple-darwin", ext: "tar.gz" },
-	"x64-linux": { name: "x86_64-unknown-linux-musl", ext: "tar.gz" },
-	"x64-win32": { name: "x86_64-pc-windows-msvc", ext: "zip" },
+// Note: Windows is not supported in this build (requires unzipper for .zip extraction)
+const PLATFORM: Record<string, string> = {
+	"arm64-darwin": "aarch64-apple-darwin",
+	"arm64-linux": "aarch64-unknown-linux-gnu",
+	"x64-darwin": "x86_64-apple-darwin",
+	"x64-linux": "x86_64-unknown-linux-musl",
 }
 
 function getBinDir(): string {
@@ -28,8 +28,9 @@ export async function getRipgrepPath(): Promise<string> {
 
 	// 1. Check for system ripgrep
 	try {
-		const cmd = process.platform === "win32" ? "where rg" : "which rg"
-		const systemRg = execSync(cmd, { encoding: "utf-8" }).split("\n")[0]?.trim()
+		const systemRg = execSync("which rg", { encoding: "utf-8" })
+			.split("\n")[0]
+			?.trim()
 		if (systemRg) {
 			cachedRgPath = systemRg
 			return systemRg
@@ -40,10 +41,7 @@ export async function getRipgrepPath(): Promise<string> {
 
 	// 2. Check if already downloaded
 	const binDir = getBinDir()
-	const rgPath = path.join(
-		binDir,
-		process.platform === "win32" ? "rg.exe" : "rg",
-	)
+	const rgPath = path.join(binDir, "rg")
 
 	try {
 		await fs.access(rgPath, fs.constants.X_OK)
@@ -61,10 +59,10 @@ export async function getRipgrepPath(): Promise<string> {
 
 async function downloadRipgrep(binDir: string, rgPath: string): Promise<void> {
 	const platformKey = `${process.arch}-${process.platform}`
-	const config = PLATFORM[platformKey]
-	if (!config) throw new Error(`Unsupported platform: ${platformKey}`)
+	const platformName = PLATFORM[platformKey]
+	if (!platformName) throw new Error(`Unsupported platform: ${platformKey}`)
 
-	const filename = `ripgrep-${RIPGREP_VERSION}-${config.name}.${config.ext}`
+	const filename = `ripgrep-${RIPGREP_VERSION}-${platformName}.tar.gz`
 	const url = `https://github.com/BurntSushi/ripgrep/releases/download/${RIPGREP_VERSION}/${filename}`
 
 	await fs.mkdir(binDir, { recursive: true })
@@ -77,17 +75,11 @@ async function downloadRipgrep(binDir: string, rgPath: string): Promise<void> {
 	await fs.writeFile(archivePath, Buffer.from(await response.arrayBuffer()))
 
 	// Extract
-	if (config.ext === "tar.gz") {
-		await extractTarGz(archivePath, binDir, platformKey)
-	} else {
-		await extractZip(archivePath, rgPath)
-	}
+	await extractTarGz(archivePath, binDir, platformKey)
 
 	// Cleanup & permissions
 	await fs.unlink(archivePath)
-	if (process.platform !== "win32") {
-		await fs.chmod(rgPath, 0o755)
-	}
+	await fs.chmod(rgPath, 0o755)
 }
 
 async function extractTarGz(
@@ -125,23 +117,6 @@ async function extractTarGz(
 
 		proc.on("error", reject)
 	})
-}
-
-async function extractZip(archivePath: string, rgPath: string): Promise<void> {
-	// Dynamic import to avoid loading unzipper on non-Windows platforms
-	const unzipper = (await import("unzipper")) as typeof import("unzipper")
-
-	const directory = await unzipper.Open.file(archivePath)
-	const rgEntry = directory.files.find((f: { path: string }) =>
-		f.path.endsWith("rg.exe"),
-	)
-
-	if (!rgEntry) {
-		throw new Error("rg.exe not found in zip archive")
-	}
-
-	const content = await rgEntry.buffer()
-	await fs.writeFile(rgPath, content)
 }
 
 export interface FilesOptions {

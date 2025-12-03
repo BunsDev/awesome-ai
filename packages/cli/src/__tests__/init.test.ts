@@ -97,6 +97,7 @@ describe("init command", () => {
 
 		// Verify existing aliases were preserved (prompts used existingConfig as initial values)
 		const newConfig = JSON.parse(await project.readFile("agents.json"))
+
 		expect(newConfig.aliases.agents).toBe("~/my-agents")
 		expect(newConfig.aliases.tools).toBe("~/my-tools")
 		expect(newConfig.aliases.prompts).toBe("~/my-prompts")
