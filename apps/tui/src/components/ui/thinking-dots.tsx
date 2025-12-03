@@ -21,4 +21,3 @@ export function ThinkingDots({ color = colors.muted }: ThinkingDotsProps) {
 
 	return <text fg={color}>thinking{FRAMES[frame]}</text>
 }
-

@@ -4,7 +4,7 @@ import { colors } from "../theme"
 import { formatTimestamp, getMessageReasoning, getMessageText } from "../types"
 import { type MessageAtom, messagesAtom } from "./atoms"
 import { ThinkingSection } from "./thinking-section"
-import { type ToolData, type ToolPartProps, ToolPart } from "./tool-part"
+import { type ToolData, ToolPart } from "./tool-part"
 import { StreamingIndicator } from "./ui/streaming-indicator"
 import { ThinkingDots } from "./ui/thinking-dots"
 
@@ -85,7 +85,7 @@ function Message({ messageAtom }: { messageAtom: MessageAtom }) {
 			) : (
 				<box style={{ flexDirection: "column" }}>
 					{reasoning && <ThinkingSection thinking={reasoning} />}
-					<box style={{ flexDirection: "row" }}>
+					<box style={{ flexDirection: "row", width: "100%" }}>
 						<code
 							content={text}
 							filetype="markdown"
@@ -93,7 +93,6 @@ function Message({ messageAtom }: { messageAtom: MessageAtom }) {
 						/>
 						{streaming && <StreamingIndicator color={colors.muted} />}
 					</box>
-
 					{!streaming && <text fg={colors.muted}>{timestamp}</text>}
 
 					{/* Render tool parts */}

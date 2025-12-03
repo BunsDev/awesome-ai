@@ -10,6 +10,7 @@ const SHORTCUTS = {
 		{ action: "Copy selected text", keys: ["⌥ C"] },
 		{ action: "Approve pending tool", keys: ["⌥ Y"] },
 		{ action: "Deny pending tool", keys: ["⌥ N"] },
+		{ action: "Stop generation", keys: ["⌥ X"] },
 		{ action: "Previous command in history", keys: ["↑"] },
 		{ action: "Next command in history", keys: ["↓"] },
 		{ action: "Autocomplete command", keys: ["Tab"] },

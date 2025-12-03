@@ -22,4 +22,3 @@ export function StreamingIndicator({
 
 	return <text fg={color}>{CURSOR_FRAMES[frame]}</text>
 }
-

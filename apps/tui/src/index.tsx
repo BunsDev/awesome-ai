@@ -28,7 +28,7 @@ import {
 import { ShortcutsPanel } from "./components/shortcuts-panel"
 import { colors } from "./theme"
 import { createSystemMessage } from "./types"
-import { handleToolApproval, setCwd } from "./utils/agent"
+import { handleToolApproval, setCwd, stopGeneration } from "./utils/agent"
 import { discoverAgents } from "./utils/agent-discovery"
 import { copyToClipboard } from "./utils/clipboard"
 
@@ -100,6 +100,13 @@ function Chat() {
 		if (key.name === "n" && (key.meta || key.option)) {
 			key.preventDefault()
 			handleToolApproval(false)
+			return
+		}
+
+		// Alt+X to stop generation
+		if (key.name === "x" && (key.meta || key.option)) {
+			key.preventDefault()
+			stopGeneration()
 			return
 		}
 

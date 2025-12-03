@@ -22,6 +22,8 @@ import {
 let currentAgentInstance: Agent | null = null
 let conversationMessages: ModelMessage[] = []
 let cwdGlobal: string = ""
+let currentAbortController: AbortController | null = null
+let currentStreamingMessageAtom: MessageAtom | null = null
 
 export function setCwd(cwd: string) {
 	cwdGlobal = cwd
@@ -39,59 +41,89 @@ export function isAgentLoaded() {
 	return currentAgentInstance !== null
 }
 
+export function stopGeneration() {
+	if (!currentAbortController) return false
+
+	currentAbortController.abort()
+	currentAbortController = null
+
+	// Remove streaming flag from current message
+	if (currentStreamingMessageAtom) {
+		const msg = currentStreamingMessageAtom.get()
+		currentStreamingMessageAtom.set({
+			...msg,
+			metadata: { timestamp: msg.metadata?.timestamp ?? Date.now() },
+		})
+		currentStreamingMessageAtom = null
+	}
+
+	isLoadingAtom.set(false)
+	addMessage(createSystemMessage("Generation stopped."))
+	return true
+}
+
 /**
  * Stream an agent response and update the message atom with the results.
  */
 async function streamAgentResponse(messageAtom: MessageAtom): Promise<void> {
 	if (!currentAgentInstance) return
 
-	const result = await currentAgentInstance.stream({
-		messages: conversationMessages,
-	})
+	currentAbortController = new AbortController()
+	currentStreamingMessageAtom = messageAtom
 
-	let reasoningText = ""
-	let responseText = ""
-
-	const updateMessage = () => {
-		const current = messageAtom.get()
-		const newParts = current.parts.map((part) => {
-			if (part.type === "text") {
-				return { ...part, text: responseText }
-			}
-			if (part.type === "reasoning") {
-				return { ...part, text: reasoningText }
-			}
-			return part
+	try {
+		const result = await currentAgentInstance.stream({
+			messages: conversationMessages,
+			abortSignal: currentAbortController.signal,
 		})
-		messageAtom.set({ ...current, parts: newParts as TUIMessage["parts"] })
-	}
 
-	for await (const chunk of result.fullStream) {
-		switch (chunk.type) {
-			case "reasoning-delta":
-				reasoningText += chunk.text
-				updateMessage()
-				break
+		let reasoningText = ""
+		let responseText = ""
 
-			case "text-delta":
-				responseText += chunk.text
-				updateMessage()
-				break
-
-			case "error":
-				throw new Error(String(chunk.error))
+		const updateMessage = () => {
+			const current = messageAtom.get()
+			const newParts = current.parts.map((part) => {
+				if (part.type === "text") {
+					return { ...part, text: responseText }
+				}
+				if (part.type === "reasoning") {
+					return { ...part, text: reasoningText }
+				}
+				return part
+			})
+			messageAtom.set({ ...current, parts: newParts as TUIMessage["parts"] })
 		}
+
+		for await (const chunk of result.fullStream) {
+			switch (chunk.type) {
+				case "reasoning-delta":
+					reasoningText += chunk.text
+					updateMessage()
+					break
+
+				case "text-delta":
+					responseText += chunk.text
+					updateMessage()
+					break
+
+				case "error":
+					throw new Error(String(chunk.error))
+			}
+		}
+
+		// Mark streaming as complete (remove streaming flag)
+		const finalMsg = messageAtom.get()
+		messageAtom.set({
+			...finalMsg,
+			metadata: { timestamp: finalMsg.metadata?.timestamp ?? Date.now() },
+		})
+
+		const response = await result.response
+		conversationMessages.push(...response.messages)
+	} finally {
+		currentAbortController = null
+		currentStreamingMessageAtom = null
 	}
-
-	// Mark streaming as complete (remove streaming flag)
-	const finalMsg = messageAtom.get()
-	messageAtom.set({
-		...finalMsg,
-		metadata: { timestamp: finalMsg.metadata?.timestamp ?? Date.now() },
-	})
-
-	const response = await result.response
-	conversationMessages.push(...response.messages)
 }
 
 export async function loadAgent(agentName: string): Promise<boolean> {
@@ -159,11 +191,20 @@ export async function sendMessage(userPrompt: string): Promise<void> {
 		const messageAtom = addMessage(assistantMsg)
 		await streamAgentResponse(messageAtom)
 	} catch (error) {
-		addMessage(
-			createSystemMessage(
-				`Error: ${error instanceof Error ? error.message : String(error)}`,
-			),
-		)
+		// Ignore abort errors (user stopped generation)
+		const isAbortError =
+			error instanceof Error &&
+			(error.name === "AbortError" ||
+				error.message.includes("aborted") ||
+				error.message.includes("No output generated"))
+
+		if (!isAbortError) {
+			addMessage(
+				createSystemMessage(
+					`Error: ${error instanceof Error ? error.message : String(error)}`,
+				),
+			)
+		}
 	} finally {
 		isLoadingAtom.set(false)
 	}
@@ -222,11 +263,16 @@ export async function handleToolApproval(approved: boolean): Promise<boolean> {
 		try {
 			await streamAgentResponse(messageAtom)
 		} catch (error) {
-			addMessage(
-				createSystemMessage(
-					`Error: ${error instanceof Error ? error.message : String(error)}`,
-				),
-			)
+			// Ignore abort errors (user stopped generation)
+			const isAbortError = error instanceof Error && error.name === "AbortError"
+
+			if (!isAbortError) {
+				addMessage(
+					createSystemMessage(
+						`Error: ${error instanceof Error ? error.message : String(error)}`,
+					),
+				)
+			}
 		} finally {
 			isLoadingAtom.set(false)
 		}

@@ -3,7 +3,7 @@ import { useState } from "react"
 import { COMMANDS } from "../commands"
 import { colors } from "../theme"
 import { createSystemMessage, type TUIMessage } from "../types"
-import { resetConversation, sendMessage } from "../utils/agent"
+import { resetConversation, sendMessage, stopGeneration } from "../utils/agent"
 import { copyToClipboard } from "../utils/clipboard"
 import {
 	addMessage,
@@ -97,6 +97,7 @@ export function InputArea() {
 	const [showCommands, setShowCommands] = useAtom(showCommandsAtom)
 	const [commandFilter, setCommandFilter] = useAtom(commandFilterAtom)
 	const [selectedCommand, setSelectedCommand] = useAtom(selectedCommandAtom)
+	const [isLoading] = useAtom(isLoadingAtom)
 	const [lineCount, setLineCount] = useState(1)
 	const filteredCommands = COMMANDS.filter((cmd) =>
 		cmd.name.toLowerCase().includes(commandFilter.toLowerCase()),
@@ -190,12 +191,25 @@ export function InputArea() {
 				alignItems: "flex-start",
 			}}
 		>
-			<text fg={colors.green} style={{ width: 2, height: 1 }}>
-				❯
-			</text>
+			{isLoading ? (
+				<text
+					fg={colors.pink}
+					style={{ width: 2, height: 1 }}
+					onMouseDown={(e) => {
+						e.stopPropagation()
+						stopGeneration()
+					}}
+				>
+					■
+				</text>
+			) : (
+				<text fg={colors.green} style={{ width: 2, height: 1 }}>
+					❯
+				</text>
+			)}
 			<textarea
 				ref={(ref) => inputAtom.set(ref)}
-				placeholder="Enter prompt, / for commands"
+				placeholder={isLoading ? "⌥ X to stop" : "Enter prompt, / for commands"}
 				focused
 				wrapMode="word"
 				keyBindings={chatKeyBindings}

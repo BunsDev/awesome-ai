@@ -168,5 +168,4 @@ describe("init command", () => {
 		// Silent mode should have minimal output
 		expect(result.stdout.length).toBeLessThan(100)
 	})
-
 })

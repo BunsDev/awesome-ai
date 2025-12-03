@@ -172,4 +172,3 @@ ${env.fileTree}
 
 	return sections.join("\n\n")
 }
-
