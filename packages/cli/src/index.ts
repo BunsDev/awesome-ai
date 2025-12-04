@@ -5,6 +5,7 @@ import { diff } from "@/src/commands/diff"
 import { exec } from "@/src/commands/exec"
 import { init } from "@/src/commands/init"
 import { list } from "@/src/commands/list"
+import { migrate } from "@/src/commands/migrate"
 import { run } from "@/src/commands/run"
 import { search } from "@/src/commands/search"
 import { view } from "@/src/commands/view"
@@ -31,6 +32,7 @@ async function main() {
 		.addCommand(list)
 		.addCommand(run)
 		.addCommand(exec)
+		.addCommand(migrate)
 		.addCommand(search)
 		.addCommand(view)
 		.addCommand(diff)

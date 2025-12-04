@@ -1,6 +1,7 @@
+import { discoverAgents } from "./utils/agent-discovery"
 import { runTui } from "./utils/tui"
 
-export { runTui }
+export { runTui, discoverAgents }
 
 // Run when executed directly (for testing without CLI)
 if (import.meta.main) {
