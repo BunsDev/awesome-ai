@@ -16,7 +16,7 @@ import {
 } from "./lib/mock-tui"
 
 // Set up module mocks
-vi.mock("tui", () => ({
+vi.mock("awesome-ai-tui", () => ({
 	runTui: mockRunTui,
 	discoverAgents: mockDiscoverAgents,
 }))
