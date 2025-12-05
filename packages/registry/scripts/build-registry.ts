@@ -129,7 +129,8 @@ async function readLibFile(
 	libName: string,
 	type: "tools" | "agents" = "tools",
 ): Promise<{ path: string; content: string } | null> {
-	const libPath = path.join(SRC_DIR, `${type}/lib`, `${libName}.ts`)
+	const libPath = path.join(SRC_DIR, type, "lib", `${libName}.ts`)
+
 	try {
 		const content = await fs.readFile(libPath, "utf-8")
 		return {
@@ -144,22 +145,34 @@ async function readLibFile(
 async function processFile(
 	filePath: string,
 	type: "tools" | "agents" | "prompts",
+	baseDir: string,
 ): Promise<RegistryItem | null> {
-	const name = path.basename(filePath, ".ts")
+	const baseName = path.basename(filePath, ".ts")
 
 	// Skip test files and lib directory
 	if (
-		name.endsWith(".test") ||
+		baseName.endsWith(".test") ||
 		filePath.includes("__tests__") ||
 		filePath.includes("/lib/")
 	) {
 		return null
 	}
 
+	// Compute the relative path from the type directory for nested items
+	// e.g., for tools/figma/fetch.ts -> "figma/fetch"
+	const relativePath = path.relative(baseDir, filePath)
+	const name = relativePath.replace(/\.ts$/, "")
+
 	const content = await fs.readFile(filePath, "utf-8")
-	const { npmDeps, npmDevDeps, registryDeps, toolLibFiles, agentLibFiles } =
-		extractImports(content, { npmPackages: NPM_PACKAGES })
-	const description = extractDescription(content, name, type)
+	const {
+		npmDeps,
+		npmDevDeps,
+		registryDeps,
+		toolLibFiles,
+		agentLibFiles,
+		relativeLibFiles,
+	} = extractImports(content, { npmPackages: NPM_PACKAGES })
+	const description = extractDescription(content, baseName, type)
 
 	const registryType = `registry:${type.slice(0, -1)}` // tools -> registry:tool
 
@@ -171,6 +184,7 @@ async function processFile(
 		},
 	]
 
+	// @/tools/lib/* imports - always top-level lib
 	for (const libName of toolLibFiles) {
 		const libFile = await readLibFile(libName, "tools")
 		if (libFile) {
@@ -182,6 +196,7 @@ async function processFile(
 		}
 	}
 
+	// @/agents/lib/* imports - always top-level lib
 	for (const libName of agentLibFiles) {
 		const libFile = await readLibFile(libName, "agents")
 		if (libFile) {
@@ -193,10 +208,23 @@ async function processFile(
 		}
 	}
 
+	// ./lib/* imports - resolve relative to the source file
+	const fileDir = path.dirname(filePath)
+	for (const libName of relativeLibFiles) {
+		const libPath = path.join(fileDir, "lib", `${libName}.ts`)
+		const libContent = await fs.readFile(libPath, "utf-8")
+		const libRelativePath = path.relative(baseDir, libPath)
+		files.push({
+			path: `${type}/${libRelativePath}`,
+			type: "registry:lib",
+			content: libContent,
+		})
+	}
+
 	const item: RegistryItem = {
 		name,
 		type: registryType,
-		title: toTitleCase(name),
+		title: toTitleCase(baseName),
 		description,
 		files,
 	}
@@ -219,29 +247,38 @@ async function processFile(
 async function processDirectory(
 	type: "tools" | "agents" | "prompts",
 ): Promise<RegistryItem[]> {
-	const dirPath = path.join(SRC_DIR, type)
+	const baseDir = path.join(SRC_DIR, type)
 	const items: RegistryItem[] = []
 
-	try {
-		const entries = await fs.readdir(dirPath, { withFileTypes: true })
+	async function walkDirectory(dirPath: string): Promise<void> {
+		try {
+			const entries = await fs.readdir(dirPath, { withFileTypes: true })
 
-		for (const entry of entries) {
-			if (
-				entry.isFile() &&
-				entry.name.endsWith(".ts") &&
-				!entry.name.includes(".test.")
-			) {
-				const filePath = path.join(dirPath, entry.name)
-				const item = await processFile(filePath, type)
-				if (item) {
-					items.push(item)
+			for (const entry of entries) {
+				const fullPath = path.join(dirPath, entry.name)
+
+				if (entry.isDirectory()) {
+					if (entry.name === "lib" || entry.name === "__tests__") {
+						continue
+					}
+					await walkDirectory(fullPath)
+				} else if (
+					entry.isFile() &&
+					entry.name.endsWith(".ts") &&
+					!entry.name.includes(".test.")
+				) {
+					const item = await processFile(fullPath, type, baseDir)
+					if (item) {
+						items.push(item)
+					}
 				}
 			}
+		} catch (error) {
+			console.warn(`Warning: Could not read directory ${dirPath}:`, error)
 		}
-	} catch (error) {
-		console.warn(`Warning: Could not read ${type} directory:`, error)
 	}
 
+	await walkDirectory(baseDir)
 	return items
 }
 

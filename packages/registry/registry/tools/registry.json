@@ -38,6 +38,20 @@
 			"dependencies": ["ai", "diff", "zod"]
 		},
 		{
+			"name": "figma/migration-state",
+			"type": "registry:tool",
+			"title": "Migration State",
+			"description": "Migration State tool for AI agents",
+			"dependencies": ["ai", "zod"]
+		},
+		{
+			"name": "figma/fetch",
+			"type": "registry:tool",
+			"title": "Fetch",
+			"description": "Fetch a Figma file and extract its structure for migration.",
+			"dependencies": ["ai", "zod"]
+		},
+		{
 			"name": "bash",
 			"type": "registry:tool",
 			"title": "Bash",

@@ -58,16 +58,12 @@ export const registryResolvedItemsTreeSchema = registryItemSchema.pick({
 	docs: true,
 })
 
+// Registry URL can either include {name} and {type} placeholders explicitly,
+// or omit them and they will be auto-appended as {type}/{name}.json
 export const registryConfigItemSchema = z.union([
-	z.string().refine((s) => s.includes("{name}") && s.includes("{type}"), {
-		message: "Registry URL must include {name} and {type} placeholders",
-	}),
+	z.string(),
 	z.object({
-		url: z
-			.string()
-			.refine((s) => s.includes("{name}") && s.includes("{type}"), {
-				message: "Registry URL must include {name} and {type} placeholders",
-			}),
+		url: z.string(),
 		params: z.record(z.string(), z.string()).optional(),
 		headers: z.record(z.string(), z.string()).optional(),
 	}),

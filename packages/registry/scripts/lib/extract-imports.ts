@@ -9,6 +9,7 @@ export interface ExtractImportsResult {
 	registryDeps: string[]
 	toolLibFiles: string[]
 	agentLibFiles: string[]
+	relativeLibFiles: string[]
 }
 
 export interface ExtractImportsOptions {
@@ -42,16 +43,29 @@ export function extractImports(
 	const registryDeps: string[] = []
 	const toolLibFiles: string[] = []
 	const agentLibFiles: string[] = []
+	const relativeLibFiles: string[] = []
 
-	// Match import statements
+	// Match import statements (including type-only imports)
 	const importRegex =
-		/import\s+(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+)?["']([^"']+)["']/g
+		/import\s+(?:type\s+)?(?:(?:\{[^}]*\}|\*\s+as\s+\w+|\w+)\s+from\s+)?["']([^"']+)["']/g
 	let match = importRegex.exec(content)
 
 	while (match !== null) {
 		const importPath = match[1]!
 
-		// Skip relative imports (handled separately for lib files)
+		// Handle relative lib imports (e.g., ./lib/parser)
+		// Only supports direct lib files, not nested folders inside lib
+		if (importPath.startsWith("./lib/") || importPath.startsWith("../lib/")) {
+			const libName = importPath.replace(/^\.\.?\/lib\//, "")
+			// Skip if it contains a slash (nested folder inside lib)
+			if (!libName.includes("/")) {
+				relativeLibFiles.push(libName)
+			}
+			match = importRegex.exec(content)
+			continue
+		}
+
+		// Skip other relative imports
 		if (importPath.startsWith("./") || importPath.startsWith("../")) {
 			match = importRegex.exec(content)
 			continue
@@ -100,5 +114,6 @@ export function extractImports(
 		registryDeps: [...new Set(registryDeps)],
 		toolLibFiles: [...new Set(toolLibFiles)],
 		agentLibFiles: [...new Set(agentLibFiles)],
+		relativeLibFiles: [...new Set(relativeLibFiles)],
 	}
 }

@@ -706,4 +706,60 @@ describe("add command update behavior", () => {
 		expect(output).toContain("file updated")
 		expect(output).toContain("skipped")
 	})
+
+	describe("registries without placeholders", () => {
+		it("auto-appends {type}/{name}.json to registry URLs without placeholders", async () => {
+			// Create project with registry URL that doesn't have placeholders
+			const project = await createTestProject({
+				packageJson: { name: "test-project" },
+				tsconfig: {
+					compilerOptions: {
+						baseUrl: ".",
+						paths: {
+							"@/*": ["./*"],
+						},
+					},
+				},
+				files: {
+					"agents.json": JSON.stringify({
+						tsx: true,
+						aliases: {
+							agents: "@/agents",
+							tools: "@/tools",
+							prompts: "@/prompts",
+						},
+						registries: {
+							// Registry URL without placeholders - should auto-append /{type}/{name}.json
+							"@test": registryUrl,
+						},
+					}),
+				},
+			})
+
+			const result = await runCLI(
+				["add", "@test/test-tool", "--tool", "--yes"],
+				{ cwd: project.path },
+			)
+
+			expect(result.exitCode).toBe(0)
+			expect(await project.exists("tools/test-tool.ts")).toBe(true)
+		})
+	})
+
+	describe("nested tools", () => {
+		it("adds nested tools to correct location", async () => {
+			const project = await createProjectWithRegistry()
+
+			const result = await runCLI(
+				["add", "@test/nested/test-nested", "--tool", "--yes"],
+				{ cwd: project.path },
+			)
+
+			expect(result.exitCode).toBe(0)
+			expect(await project.exists("tools/nested/test-nested.ts")).toBe(true)
+
+			const content = await project.readFile("tools/nested/test-nested.ts")
+			expect(content).toContain("testNestedTool")
+		})
+	})
 })

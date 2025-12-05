@@ -6,5 +6,7 @@
 		"tools": "@/tools",
 		"prompts": "@/prompts"
 	},
-	"registries": {}
+	"registries": {
+		"@local": "../../packages/registry/registry"
+	}
 }

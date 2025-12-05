@@ -3,6 +3,12 @@
 	"homepage": "https://awesome-ai.com",
 	"items": [
 		{
+			"name": "figma-agent",
+			"type": "registry:prompt",
+			"title": "Figma Agent",
+			"description": "You are a Figma-to-Code specialist that creates pixel-perfect implementations from Figma designs."
+		},
+		{
 			"name": "pages-to-app-router",
 			"type": "registry:prompt",
 			"title": "Pages To App Router",
