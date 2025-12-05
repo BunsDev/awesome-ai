@@ -75,17 +75,6 @@ export function getMessageText(message: TUIMessage): string {
 }
 
 /**
- * Extract reasoning content from a message's parts
- */
-export function getMessageReasoning(message: TUIMessage): string | undefined {
-	const reasoningPart = message.parts.find(
-		(part): part is { type: "reasoning"; text: string } =>
-			part.type === "reasoning",
-	)
-	return reasoningPart?.text
-}
-
-/**
  * Standard tool output shape following our registry schema.
  * All tools output { status, message, ...additionalFields }
  */

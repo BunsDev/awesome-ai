@@ -1,6 +1,6 @@
 import { useAtom } from "@lfades/atom"
 import { colors } from "../theme"
-import { formatTimestamp, getMessageReasoning, getMessageText } from "../types"
+import { formatTimestamp, getMessageText } from "../types"
 import {
 	type MessageAtom,
 	messageListScrollboxAtom,
@@ -9,19 +9,32 @@ import {
 import { Markdown } from "./markdown"
 import { ThinkingSection } from "./thinking-section"
 import { type ToolData, ToolPart } from "./tool-part"
-import { StreamingIndicator } from "./ui/streaming-indicator"
+import { AnimatedDots } from "./ui/animated-dots"
 import { ThinkingDots } from "./ui/thinking-dots"
+
+function isToolPart(part: { type: string }): boolean {
+	return part.type.startsWith("tool-") || part.type === "dynamic-tool"
+}
+
+function hasContent(msg: {
+	parts: Array<{ type: string; text?: string }>
+}): boolean {
+	return msg.parts.some(
+		(p) =>
+			(p.type === "text" && p.text) ||
+			(p.type === "reasoning" && p.text) ||
+			isToolPart(p),
+	)
+}
 
 function Message({ messageAtom }: { messageAtom: MessageAtom }) {
 	const [msg] = useAtom(messageAtom)
 	const text = getMessageText(msg)
-	const reasoning = getMessageReasoning(msg)
 	const streaming = msg.metadata?.streaming
 	const timestamp = msg.metadata?.timestamp
 		? formatTimestamp(msg.metadata.timestamp)
 		: ""
-	// When streaming with no content yet, show "thinking..."
-	const showThinking = streaming && !text && !reasoning
+	const showThinking = streaming && !hasContent(msg)
 
 	return (
 		<box
@@ -45,33 +58,49 @@ function Message({ messageAtom }: { messageAtom: MessageAtom }) {
 				<ThinkingDots />
 			) : (
 				<box style={{ flexDirection: "column" }}>
-					{reasoning && <ThinkingSection thinking={reasoning} />}
-					<box style={{ flexDirection: "column", width: "100%" }}>
-						<Markdown streaming={streaming}>{text}</Markdown>
-						{streaming && <StreamingIndicator color={colors.muted} />}
-					</box>
-					{!streaming && (
-						<text fg={colors.muted} style={{ width: "100%" }}>
-							{timestamp}
-						</text>
-					)}
-
-					{/* Render tool parts */}
-					{msg.parts
-						.filter(
-							(part) =>
-								part.type.startsWith("tool-") || part.type === "dynamic-tool",
-						)
-						.map((part, idx) => {
+					{msg.parts.map((part, idx) => {
+						if (part.type === "text") {
+							const textPart = part as { type: "text"; text: string }
+							if (!textPart.text) return null
+							return (
+								<box
+									key={`text-${idx}`}
+									style={{ flexDirection: "column", width: "100%" }}
+								>
+									<Markdown streaming={streaming}>{textPart.text}</Markdown>
+								</box>
+							)
+						}
+						if (part.type === "reasoning") {
+							const reasoningPart = part as { type: "reasoning"; text: string }
+							if (!reasoningPart.text) return null
+							return (
+								<ThinkingSection
+									key={`reasoning-${idx}`}
+									thinking={reasoningPart.text}
+								/>
+							)
+						}
+						if (isToolPart(part)) {
 							const toolPart = part as ToolData
 							return (
 								<ToolPart
-									key={toolPart.toolCallId || idx}
+									key={toolPart.toolCallId || `tool-${idx}`}
 									data={toolPart}
 									messageAtom={messageAtom}
 								/>
 							)
-						})}
+						}
+						return null
+					})}
+
+					{streaming ? (
+						<AnimatedDots label="Generating" color={colors.muted} />
+					) : (
+						<text fg={colors.muted} style={{ width: "100%" }}>
+							{timestamp}
+						</text>
+					)}
 				</box>
 			)}
 		</box>

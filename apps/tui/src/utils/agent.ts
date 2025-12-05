@@ -32,7 +32,8 @@ let agentLoadPromise: Promise<boolean> | null = null
 
 export function resetConversation() {
 	conversationMessages = []
-	currentAgentInstance = null
+	// Note: We intentionally don't reset currentAgentInstance here
+	// The agent can be reused across conversations
 }
 
 function getMessages(): TUIMessage[] {
@@ -88,6 +89,14 @@ export function stopGeneration() {
 	return true
 }
 
+// Tool call tracking during streaming
+interface ToolCallState {
+	toolName: string
+	input?: unknown
+	inputText: string // For streaming input
+	dynamic?: boolean
+}
+
 /**
  * Stream an agent response and update the message atom with the results.
  */
@@ -104,60 +113,222 @@ async function streamAgentResponse(messageAtom: MessageAtom): Promise<void> {
 		})
 
 		let reasoningText = ""
-		let responseText = ""
 		let hasReasoningPart = false
+		const toolCalls = new Map<string, ToolCallState>()
 
-		const updateMessage = () => {
+		// Track current text segment - when a tool is added, we start a new segment
+		let currentTextSegment = ""
+		let currentTextPartIndex = 0 // Index of the current text part we're updating
+
+		const updateReasoningAndText = () => {
 			const current = messageAtom.get()
-			let parts = current.parts
+			let parts = [...current.parts] as any[]
 
-			// If we have reasoning text but no reasoning part yet, add one
+			// If we have reasoning text but no reasoning part yet, add one at the start
 			if (reasoningText && !hasReasoningPart) {
 				debugLog("xD Adding reasoning part to message UwU")
-
 				hasReasoningPart = true
-				// Insert reasoning part before the text part
-				const textPartIndex = parts.findIndex((p) => p.type === "text")
-				if (textPartIndex >= 0) {
-					parts = [
-						...parts.slice(0, textPartIndex),
-						{ type: "reasoning" as const, text: reasoningText },
-						...parts.slice(textPartIndex),
-					]
-				} else {
-					parts = [
-						{ type: "reasoning" as const, text: reasoningText },
-						...parts,
-					]
+				parts = [{ type: "reasoning" as const, text: reasoningText }, ...parts]
+				// Adjust text part index since we inserted at the beginning
+				currentTextPartIndex += 1
+			}
+
+			// Update reasoning part if it exists
+			if (hasReasoningPart && parts[0]?.type === "reasoning") {
+				parts[0] = { ...parts[0], text: reasoningText }
+			}
+
+			// Update the current text part
+			if (parts[currentTextPartIndex]?.type === "text") {
+				parts[currentTextPartIndex] = {
+					...parts[currentTextPartIndex],
+					text: currentTextSegment,
 				}
 			}
 
-			const newParts = parts.map((part) => {
-				if (part.type === "text") {
-					return { ...part, text: responseText }
-				}
-				if (part.type === "reasoning") {
-					return { ...part, text: reasoningText }
-				}
-				return part
-			})
-			messageAtom.set({ ...current, parts: newParts as TUIMessage["parts"] })
+			messageAtom.set({ ...current, parts: parts as TUIMessage["parts"] })
+		}
+
+		const addOrUpdateToolPart = (
+			toolCallId: string,
+			updates: {
+				toolName?: string
+				state?: ToolData["state"]
+				input?: unknown
+				output?: unknown
+				errorText?: string
+				approval?: ToolData["approval"]
+				dynamic?: boolean // Not stored in ToolData, only used for type determination
+			},
+		) => {
+			const current = messageAtom.get()
+			const existingPartIndex = current.parts.findIndex(
+				(p) =>
+					(p.type.startsWith("tool-") || p.type === "dynamic-tool") &&
+					(p as ToolData).toolCallId === toolCallId,
+			)
+
+			if (existingPartIndex >= 0) {
+				// Update existing tool part - only update defined fields
+				const newParts = [...current.parts] as any[]
+				const existingPart = newParts[existingPartIndex] as ToolData
+				const updatedPart = { ...existingPart }
+
+				if (updates.state !== undefined) updatedPart.state = updates.state
+				if (updates.input !== undefined) updatedPart.input = updates.input
+				if (updates.output !== undefined) updatedPart.output = updates.output
+				if (updates.errorText !== undefined)
+					updatedPart.errorText = updates.errorText
+				if (updates.approval !== undefined)
+					updatedPart.approval = updates.approval
+
+				newParts[existingPartIndex] = updatedPart
+				messageAtom.set({ ...current, parts: newParts })
+			} else {
+				// Add new tool part
+				const toolState = toolCalls.get(toolCallId)
+				const toolName = updates.toolName || toolState?.toolName || "unknown"
+				const isDynamic = updates.dynamic ?? toolState?.dynamic ?? false
+				const { dynamic: _dynamic, ...restUpdates } = updates
+				const newPart = {
+					type: isDynamic
+						? ("dynamic-tool" as const)
+						: (`tool-${toolName}` as const),
+					toolName: isDynamic ? toolName : undefined,
+					toolCallId,
+					state: restUpdates.state ?? ("input-streaming" as const),
+					input: restUpdates.input,
+					output: restUpdates.output,
+					errorText: restUpdates.errorText,
+					approval: restUpdates.approval,
+				} satisfies ToolData
+
+				// Add the tool part and a new empty text part after it
+				// This way, any text that comes after the tool will go into the new text part
+				const newParts = [...current.parts] as any[]
+				newParts.push(newPart)
+				newParts.push({ type: "text" as const, text: "" })
+
+				// Update the index to point to the new text part
+				currentTextPartIndex = newParts.length - 1
+				currentTextSegment = "" // Start fresh for text after the tool
+
+				messageAtom.set({ ...current, parts: newParts })
+			}
 		}
 
 		for await (const chunk of result.fullStream) {
 			switch (chunk.type) {
 				case "reasoning-delta":
 					reasoningText += chunk.text
-					updateMessage()
+					updateReasoningAndText()
 					break
 
 				case "text-delta":
-					responseText += chunk.text
-					updateMessage()
+					currentTextSegment += chunk.text
+					updateReasoningAndText()
 					break
+
+				case "tool-input-start": {
+					// Tool input is starting to stream
+					toolCalls.set(chunk.id, {
+						toolName: chunk.toolName,
+						inputText: "",
+						dynamic: chunk.dynamic,
+					})
+					addOrUpdateToolPart(chunk.id, {
+						toolName: chunk.toolName,
+						state: "input-streaming",
+						dynamic: chunk.dynamic,
+					})
+					break
+				}
+
+				case "tool-input-delta": {
+					// Model is streaming the tool arguments - show partial text to user
+					const state = toolCalls.get(chunk.id)
+					if (state) {
+						state.inputText += chunk.delta
+						// Show raw streaming text as input (will be replaced with parsed input on tool-call)
+						addOrUpdateToolPart(chunk.id, {
+							input: state.inputText,
+						})
+					}
+					break
+				}
+
+				case "tool-call": {
+					const isDynamic = "dynamic" in chunk && chunk.dynamic
+					toolCalls.set(chunk.toolCallId, {
+						toolName: chunk.toolName,
+						input: chunk.input,
+						inputText: JSON.stringify(chunk.input),
+						dynamic: isDynamic,
+					})
+					addOrUpdateToolPart(chunk.toolCallId, {
+						toolName: chunk.toolName,
+						state: "input-available",
+						input: chunk.input,
+						dynamic: isDynamic,
+					})
+					debugLog(`Tool called: ${chunk.toolName}`, chunk.input)
+					break
+				}
+
+				case "tool-result": {
+					// preliminary: true means streaming/intermediate result
+					// Only mark as output-available when we get the final result
+					const isFinal = !chunk.preliminary
+					addOrUpdateToolPart(chunk.toolCallId, {
+						state: isFinal ? "output-available" : undefined, // Keep current state if preliminary
+						output: chunk.output,
+					})
+					debugLog(
+						`Tool result${chunk.preliminary ? " (streaming)" : ""}: ${chunk.toolCallId}`,
+						chunk.output,
+					)
+					break
+				}
+
+				case "tool-error": {
+					addOrUpdateToolPart(chunk.toolCallId, {
+						state: "output-error",
+						errorText:
+							chunk.error instanceof Error
+								? chunk.error.message
+								: String(chunk.error),
+					})
+					debugLog(`Tool error: ${chunk.toolCallId}`, chunk.error)
+					break
+				}
+
+				case "tool-approval-request": {
+					addOrUpdateToolPart(chunk.toolCall.toolCallId, {
+						state: "approval-requested",
+						approval: {
+							id: chunk.approvalId,
+						},
+					})
+					debugLog(
+						`Tool approval requested: ${chunk.toolCall.toolName}`,
+						chunk.approvalId,
+					)
+					break
+				}
 
 				case "error":
 					throw new Error(String(chunk.error))
+
+				default: {
+					// Handle tool-output-denied which may not be in the type union
+					const unknownChunk = chunk as any
+					if (unknownChunk.type === "tool-output-denied") {
+						addOrUpdateToolPart(unknownChunk.toolCallId, {
+							state: "output-denied",
+						})
+						debugLog(`Tool denied: ${unknownChunk.toolCallId}`)
+					}
+				}
 			}
 		}
 
