@@ -6,11 +6,6 @@
 	"scripts": {
 		"awesome-ai": "AWESOME_AI_REGISTRY_URL=../../packages/registry/registry bun ../../packages/cli/src/index.ts"
 	},
-	"dependencies": {
-		"ai": "catalog:",
-		"diff": "^8.0.2",
-		"zod": "catalog:"
-	},
 	"devDependencies": {
 		"@types/node": "^22",
 		"typescript": "catalog:"
