@@ -1,5 +1,11 @@
 # awesome-ai-tui
 
+## 0.1.0-beta.7
+
+### Patch Changes
+
+- Test version
+
 ## 0.1.0-beta.6
 
 ### Patch Changes
