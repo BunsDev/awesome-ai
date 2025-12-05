@@ -75,7 +75,7 @@ import { createContext } from "@/agents/lib/context"
 		expect(result.agentLibFiles).toEqual(["context"])
 	})
 
-	it("ignores relative imports", () => {
+	it("ignores non-lib relative imports", () => {
 		const content = `
 import { helper } from "./helper"
 import { util } from "../utils"
@@ -84,6 +84,47 @@ import { util } from "../utils"
 
 		expect(result.npmDeps).toEqual([])
 		expect(result.registryDeps).toEqual([])
+		expect(result.relativeLibFiles).toEqual([])
+	})
+
+	it("extracts relative lib imports from ./lib/*", () => {
+		const content = `
+import { extractFigmaStructure } from "./lib/parser"
+import type { ExtractedData, FigmaFile } from "./lib/types"
+`
+		const result = extractImports(content, defaultOptions)
+
+		expect(result.relativeLibFiles).toEqual(["parser", "types"])
+	})
+
+	it("extracts relative lib imports from ../lib/*", () => {
+		const content = `
+import { helper } from "../lib/helper"
+`
+		const result = extractImports(content, defaultOptions)
+
+		expect(result.relativeLibFiles).toEqual(["helper"])
+	})
+
+	it("ignores nested folders inside lib", () => {
+		const content = `
+import { something } from "./lib/nested/something"
+import { other } from "../lib/deep/nested/other"
+`
+		const result = extractImports(content, defaultOptions)
+
+		// Nested folders inside lib are NOT supported
+		expect(result.relativeLibFiles).toEqual([])
+	})
+
+	it("extracts type-only imports", () => {
+		const content = `
+import type { SomeType } from "zod"
+import type { Tool } from "ai"
+`
+		const result = extractImports(content, defaultOptions)
+
+		expect(result.npmDeps).toEqual(["zod", "ai"])
 	})
 
 	it("ignores node: imports", () => {

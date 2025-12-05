@@ -80,6 +80,35 @@ describe("config loading", () => {
 			)
 		})
 
+		it("accepts registries without placeholders (auto-appended)", async () => {
+			const project = await createTestProject({
+				files: {
+					"agents.json": JSON.stringify({
+						tsx: true,
+						aliases: {
+							agents: "@/agents",
+							tools: "@/tools",
+							prompts: "@/prompts",
+						},
+						registries: {
+							"@local": "../../packages/registry/registry",
+							"@remote": "https://example.com/registry",
+						},
+					}),
+				},
+			})
+
+			const config = await getRawConfig(project.path)
+
+			expect(config?.registries).toBeDefined()
+			expect(config?.registries?.["@local"]).toBe(
+				"../../packages/registry/registry",
+			)
+			expect(config?.registries?.["@remote"]).toBe(
+				"https://example.com/registry",
+			)
+		})
+
 		it("parses registry config with headers structure", async () => {
 			const project = await createTestProject({
 				files: {

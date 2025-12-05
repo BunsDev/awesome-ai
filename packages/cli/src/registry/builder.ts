@@ -13,9 +13,22 @@ import type { Config } from "@/src/schema"
 
 const NAME_PLACEHOLDER = "{name}"
 const TYPE_PLACEHOLDER = "{type}"
+const DEFAULT_PLACEHOLDER = `${TYPE_PLACEHOLDER}/${NAME_PLACEHOLDER}.json`
 const ENV_VAR_PATTERN = /\${(\w+)}/g
 const QUERY_PARAM_SEPARATOR = "?"
 const QUERY_PARAM_DELIMITER = "&"
+
+function hasPlaceholders(url: string) {
+	return url.includes(NAME_PLACEHOLDER) && url.includes(TYPE_PLACEHOLDER)
+}
+
+function appendPlaceholdersIfNeeded(url: string): string {
+	if (hasPlaceholders(url)) return url
+
+	const baseUrl = url.endsWith("/") ? url : `${url}/`
+
+	return `${baseUrl}${DEFAULT_PLACEHOLDER}`
+}
 
 export function buildUrlAndHeadersForRegistryItem(
 	name: string,
@@ -49,13 +62,15 @@ export function buildUrlFromRegistryConfig(
 	_config?: Config,
 ) {
 	if (typeof registryConfig === "string") {
-		const url = registryConfig
+		const urlWithPlaceholders = appendPlaceholdersIfNeeded(registryConfig)
+		const url = urlWithPlaceholders
 			.replace(NAME_PLACEHOLDER, item)
 			.replace(TYPE_PLACEHOLDER, type)
 		return expandEnvVars(url)
 	}
 
-	let baseUrl = registryConfig.url
+	const urlWithPlaceholders = appendPlaceholdersIfNeeded(registryConfig.url)
+	let baseUrl = urlWithPlaceholders
 		.replace(NAME_PLACEHOLDER, item)
 		.replace(TYPE_PLACEHOLDER, type)
 	baseUrl = expandEnvVars(baseUrl)

@@ -11,13 +11,13 @@
 			"registryDependencies": [
 				"prompts:figma-agent",
 				"tools:edit",
+				"tools:figma/fetch",
+				"tools:figma/migration-state",
 				"tools:glob",
 				"tools:grep",
 				"tools:list",
 				"tools:read",
-				"tools:write",
-				"tools:figma/fetch",
-				"tools:figma/migration-state"
+				"tools:write"
 			]
 		},
 		{
