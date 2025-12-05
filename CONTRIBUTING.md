@@ -80,7 +80,7 @@ pnpm changeset version
 
 # Build and publish
 pnpm build
-pnpm changeset publish --tag beta
+pnpm changeset publish
 ```
 
 #### Release Stable Version
