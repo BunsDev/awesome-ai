@@ -3,6 +3,24 @@
 	"homepage": "https://awesome-ai.com",
 	"items": [
 		{
+			"name": "figma-agent",
+			"type": "registry:agent",
+			"title": "Figma Agent",
+			"description": "Figma Agent - an AI agent",
+			"dependencies": ["ai"],
+			"registryDependencies": [
+				"prompts:figma-agent",
+				"tools:edit",
+				"tools:glob",
+				"tools:grep",
+				"tools:list",
+				"tools:read",
+				"tools:write",
+				"tools:figma/fetch",
+				"tools:figma/migration-state"
+			]
+		},
+		{
 			"name": "migration-planning-agent",
 			"type": "registry:agent",
 			"title": "Migration Planning Agent",
