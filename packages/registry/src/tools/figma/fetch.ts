@@ -1,11 +1,15 @@
+import { promises as fs } from "node:fs"
+import * as path from "node:path"
 import { tool } from "ai"
 import { z } from "zod"
 import { extractFigmaStructure, listComponents, listFrames } from "./lib/parser"
 import type { ExtractedData, FigmaFile } from "./lib/types"
 
 const FIGMA_API_BASE = "https://api.figma.com/v1"
+const FIGMA_CACHE_FILE = ".figma-cache.json"
 
 let cachedFigmaData: ExtractedData | null = null
+let currentProjectDir: string | null = null
 
 export function getCachedFigmaData(): ExtractedData | null {
 	return cachedFigmaData
@@ -13,6 +17,56 @@ export function getCachedFigmaData(): ExtractedData | null {
 
 export function setCachedFigmaData(data: ExtractedData | null): void {
 	cachedFigmaData = data
+}
+
+export function setProjectDir(dir: string): void {
+	currentProjectDir = dir
+}
+
+export function getProjectDir(): string {
+	return currentProjectDir || process.cwd()
+}
+
+/**
+ * Load Figma data from the cache file on disk
+ */
+export async function loadFigmaDataFromDisk(
+	projectDir?: string,
+): Promise<ExtractedData | null> {
+	const dir = projectDir || getProjectDir()
+	try {
+		const filepath = path.join(dir, FIGMA_CACHE_FILE)
+		const content = await fs.readFile(filepath, "utf-8")
+		const data = JSON.parse(content) as ExtractedData
+		cachedFigmaData = data
+		return data
+	} catch {
+		return null
+	}
+}
+
+/**
+ * Save Figma data to the cache file on disk
+ */
+async function saveFigmaDataToDisk(
+	data: ExtractedData,
+	projectDir?: string,
+): Promise<void> {
+	const dir = projectDir || getProjectDir()
+	const filepath = path.join(dir, FIGMA_CACHE_FILE)
+	await fs.writeFile(filepath, JSON.stringify(data, null, 2))
+}
+
+/**
+ * Ensure Figma data is loaded - either from memory cache or disk
+ */
+export async function ensureFigmaData(
+	projectDir?: string,
+): Promise<ExtractedData | null> {
+	if (cachedFigmaData) {
+		return cachedFigmaData
+	}
+	return loadFigmaDataFromDisk(projectDir)
 }
 
 function parseFileKeyFromUrl(urlOrKey: string): string {
@@ -164,7 +218,11 @@ Use migrationInit to start the migration process.`,
 				const fileData = await fetchFigmaFile(fileKey, token)
 				const extracted = extractFigmaStructure(fileData, { skipInvisible })
 
+				// Cache in memory
 				cachedFigmaData = extracted
+
+				// Persist to disk for future sessions
+				await saveFigmaDataToDisk(extracted)
 
 				const components = listComponents(extracted)
 				const frames = listFrames(extracted)

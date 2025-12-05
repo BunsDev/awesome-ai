@@ -2,11 +2,12 @@ import { promises as fs } from "node:fs"
 import * as path from "node:path"
 import { tool } from "ai"
 import { z } from "zod"
-import { getCachedFigmaData } from "./fetch"
+import { ensureFigmaData, getCachedFigmaData, getProjectDir } from "./fetch"
 import { getComponent } from "./lib/parser"
 import type {
 	ComponentState,
 	ExtractedData,
+	FigmaNode,
 	MigrationNextItem,
 	MigrationPhase,
 	MigrationProgressResult,
@@ -17,7 +18,10 @@ import type {
 
 const MIGRATION_FILE = ".figma-migration.json"
 
-async function readMigrationState(cwd: string): Promise<MigrationState | null> {
+async function readMigrationState(
+	projectDir?: string,
+): Promise<MigrationState | null> {
+	const cwd = projectDir || getProjectDir()
 	try {
 		const filepath = path.join(cwd, MIGRATION_FILE)
 		const content = await fs.readFile(filepath, "utf-8")
@@ -28,9 +32,10 @@ async function readMigrationState(cwd: string): Promise<MigrationState | null> {
 }
 
 async function writeMigrationState(
-	cwd: string,
 	state: MigrationState,
+	projectDir?: string,
 ): Promise<void> {
+	const cwd = projectDir || getProjectDir()
 	const filepath = path.join(cwd, MIGRATION_FILE)
 	state.updatedAt = new Date().toISOString()
 	await fs.writeFile(filepath, JSON.stringify(state, null, 2))
@@ -128,6 +133,161 @@ function findInstanceDependencies(
 			findInstanceDependencies(node.children, deps, selfId)
 		}
 	}
+}
+
+/**
+ * Format a Figma node definition for model consumption.
+ * This produces a readable summary of the node's properties.
+ */
+function formatFigmaDefinition(node: FigmaNode | null, depth = 0): string {
+	if (!node) return "null"
+
+	const indent = "  ".repeat(depth)
+	const lines: string[] = []
+
+	// Node header
+	lines.push(`${indent}[${node.type}] "${node.name}" (id: ${node.id})`)
+
+	// Layout properties
+	if (node.layoutMode) {
+		const layoutProps: string[] = [`layout: ${node.layoutMode}`]
+		if (node.primaryAxisAlignItems)
+			layoutProps.push(`justify: ${node.primaryAxisAlignItems}`)
+		if (node.counterAxisAlignItems)
+			layoutProps.push(`align: ${node.counterAxisAlignItems}`)
+		if (node.itemSpacing) layoutProps.push(`gap: ${node.itemSpacing}px`)
+		if (node.layoutWrap) layoutProps.push(`wrap: ${node.layoutWrap}`)
+		lines.push(`${indent}  ${layoutProps.join(", ")}`)
+	}
+
+	// Padding
+	if (
+		node.paddingTop ||
+		node.paddingRight ||
+		node.paddingBottom ||
+		node.paddingLeft
+	) {
+		lines.push(
+			`${indent}  padding: ${node.paddingTop || 0}/${node.paddingRight || 0}/${node.paddingBottom || 0}/${node.paddingLeft || 0}`,
+		)
+	}
+
+	// Size
+	if (node.absoluteBoundingBox) {
+		const { width, height } = node.absoluteBoundingBox
+		lines.push(`${indent}  size: ${Math.round(width)}x${Math.round(height)}`)
+	}
+
+	// Corner radius
+	if (node.cornerRadius) {
+		lines.push(`${indent}  borderRadius: ${node.cornerRadius}px`)
+	} else if (node.rectangleCornerRadii) {
+		lines.push(
+			`${indent}  borderRadius: ${node.rectangleCornerRadii.join("/")}`,
+		)
+	}
+
+	// Fills
+	if (node.fills && node.fills.length > 0) {
+		const visibleFills = node.fills.filter((f) => f.visible !== false)
+		for (const fill of visibleFills) {
+			if (fill.type === "SOLID" && fill.color) {
+				const { r, g, b, a } = fill.color
+				const hex = `#${Math.round(r * 255)
+					.toString(16)
+					.padStart(2, "0")}${Math.round(g * 255)
+					.toString(16)
+					.padStart(2, "0")}${Math.round(b * 255)
+					.toString(16)
+					.padStart(2, "0")}`
+				lines.push(
+					`${indent}  fill: ${hex}${a < 1 ? ` (${Math.round(a * 100)}%)` : ""}`,
+				)
+			} else if (fill.type.startsWith("GRADIENT_")) {
+				lines.push(`${indent}  fill: ${fill.type}`)
+			}
+		}
+	}
+
+	// Strokes/Borders
+	if (node.strokes && node.strokes.length > 0 && node.strokeWeight) {
+		const stroke = node.strokes[0]
+		if (stroke?.color) {
+			const { r, g, b } = stroke.color
+			const hex = `#${Math.round(r * 255)
+				.toString(16)
+				.padStart(2, "0")}${Math.round(g * 255)
+				.toString(16)
+				.padStart(2, "0")}${Math.round(b * 255)
+				.toString(16)
+				.padStart(2, "0")}`
+			lines.push(`${indent}  border: ${node.strokeWeight}px ${hex}`)
+		}
+	}
+
+	// Effects (shadows)
+	if (node.effects && node.effects.length > 0) {
+		const visibleEffects = node.effects.filter((e) => e.visible !== false)
+		for (const effect of visibleEffects) {
+			if (effect.type === "DROP_SHADOW" || effect.type === "INNER_SHADOW") {
+				lines.push(
+					`${indent}  shadow: ${effect.type} radius=${effect.radius}${effect.offset ? ` offset=${effect.offset.x}/${effect.offset.y}` : ""}`,
+				)
+			}
+		}
+	}
+
+	// Text properties
+	if (node.type === "TEXT") {
+		if (node.characters) {
+			const preview =
+				node.characters.length > 50
+					? `${node.characters.slice(0, 50)}...`
+					: node.characters
+			lines.push(`${indent}  text: "${preview}"`)
+		}
+		if (node.style) {
+			const textProps: string[] = []
+			if (node.style.fontSize) textProps.push(`size: ${node.style.fontSize}px`)
+			if (node.style.fontWeight)
+				textProps.push(`weight: ${node.style.fontWeight}`)
+			if (node.style.fontFamily)
+				textProps.push(`font: ${node.style.fontFamily}`)
+			if (node.style.textAlignHorizontal)
+				textProps.push(`align: ${node.style.textAlignHorizontal}`)
+			if (node.style.lineHeightPx)
+				textProps.push(`lineHeight: ${node.style.lineHeightPx}px`)
+			if (textProps.length > 0) {
+				lines.push(`${indent}  ${textProps.join(", ")}`)
+			}
+		}
+	}
+
+	// Instance reference
+	if (node.type === "INSTANCE" && node.componentId) {
+		lines.push(`${indent}  → componentId: ${node.componentId}`)
+	}
+
+	// Opacity
+	if (node.opacity !== undefined && node.opacity < 1) {
+		lines.push(`${indent}  opacity: ${Math.round(node.opacity * 100)}%`)
+	}
+
+	// Children (recursively format, but limit depth)
+	if (node.children && node.children.length > 0) {
+		if (depth < 4) {
+			lines.push(`${indent}  children (${node.children.length}):`)
+			for (const child of node.children) {
+				lines.push(formatFigmaDefinition(child, depth + 2))
+			}
+		} else {
+			lines.push(
+				`${indent}  children: ${node.children.length} nodes (truncated)`,
+			)
+		}
+	}
+
+	return lines.join("\n")
 }
 
 function createInitialState(
@@ -258,7 +418,8 @@ Use migrationNext to get the next items to work on.`,
 			message: "Initializing migration...",
 		}
 
-		const data = getCachedFigmaData()
+		// Try to load from memory first, then from disk
+		const data = await ensureFigmaData()
 		if (!data) {
 			yield {
 				status: "error",
@@ -269,8 +430,7 @@ Use migrationNext to get the next items to work on.`,
 			return
 		}
 
-		const cwd = process.cwd()
-		const existingState = await readMigrationState(cwd)
+		const existingState = await readMigrationState()
 		if (existingState) {
 			yield {
 				status: "error",
@@ -282,7 +442,7 @@ Use migrationNext to get the next items to work on.`,
 
 		const state = createInitialState(data, "unknown", fileUrl || "")
 
-		await writeMigrationState(cwd, state)
+		await writeMigrationState(state)
 
 		const readyComponents = Object.values(state.components)
 			.filter((c) => c.status === "pending" && c.dependenciesReady)
@@ -387,8 +547,7 @@ export const migrationProgress = tool({
 			message: "Reading migration progress...",
 		}
 
-		const cwd = process.cwd()
-		const state = await readMigrationState(cwd)
+		const state = await readMigrationState()
 
 		if (!state) {
 			yield {
@@ -398,6 +557,9 @@ export const migrationProgress = tool({
 			}
 			return
 		}
+
+		// Ensure Figma data is loaded (from disk if needed)
+		await ensureFigmaData()
 
 		const components = Object.values(state.components)
 		const pages = Object.values(state.pages)
@@ -531,8 +693,7 @@ export const migrationNext = tool({
 			message: "Finding next items...",
 		}
 
-		const cwd = process.cwd()
-		const state = await readMigrationState(cwd)
+		const state = await readMigrationState()
 
 		if (!state) {
 			yield {
@@ -637,6 +798,12 @@ export const migrationStart = tool({
 		if (output.status === "pending") {
 			return { type: "text", value: output.message }
 		}
+
+		// Format the Figma definition for the model to use
+		const definitionStr = output.definition
+			? formatFigmaDefinition(output.definition)
+			: "No definition available (external component?)"
+
 		return {
 			type: "text",
 			value: `Started working on ${output.type}: ${output.name}
@@ -644,7 +811,11 @@ export const migrationStart = tool({
 Suggested path: ${output.suggestedPath}
 ${output.dependencies?.length ? `Dependencies: ${output.dependencies.join(", ")}` : ""}
 
-Definition provided. Implement the ${output.type} and call migrationComplete when done.`,
+## Figma Definition
+
+${definitionStr}
+
+Use this definition to implement the ${output.type}. When done, call migrationComplete.`,
 		}
 	},
 	async *execute({ id }) {
@@ -653,8 +824,7 @@ Definition provided. Implement the ${output.type} and call migrationComplete whe
 			message: `Starting work on ${id}...`,
 		}
 
-		const cwd = process.cwd()
-		const state = await readMigrationState(cwd)
+		const state = await readMigrationState()
 
 		if (!state) {
 			yield {
@@ -665,12 +835,14 @@ Definition provided. Implement the ${output.type} and call migrationComplete whe
 			return
 		}
 
-		const data = getCachedFigmaData()
+		// Try to get Figma data from memory or disk
+		const data = await ensureFigmaData()
 		if (!data) {
 			yield {
 				status: "error",
 				message: "No Figma data",
-				error: "Figma data not cached. Call figmaFetch first.",
+				error:
+					"Figma data not available. Call figmaFetch to reload the Figma file.",
 			}
 			return
 		}
@@ -696,7 +868,7 @@ Definition provided. Implement the ${output.type} and call migrationComplete whe
 			}
 
 			component.status = "in_progress"
-			await writeMigrationState(cwd, state)
+			await writeMigrationState(state)
 
 			const compData = getComponent(data, id)
 			const safeName = component.name.replace(/[^a-zA-Z0-9]/g, "")
@@ -735,7 +907,7 @@ Definition provided. Implement the ${output.type} and call migrationComplete whe
 			}
 
 			page.status = "in_progress"
-			await writeMigrationState(cwd, state)
+			await writeMigrationState(state)
 
 			const frame = data.frames[id]
 			const safeName = page.frameName
@@ -826,8 +998,7 @@ export const migrationComplete = tool({
 			message: `Marking ${id} as complete...`,
 		}
 
-		const cwd = process.cwd()
-		const state = await readMigrationState(cwd)
+		const state = await readMigrationState()
 
 		if (!state) {
 			yield {
@@ -850,7 +1021,7 @@ export const migrationComplete = tool({
 
 			updateDependencyReadiness(state)
 			state.stats = computeStats(state)
-			await writeMigrationState(cwd, state)
+			await writeMigrationState(state)
 
 			const newlyReady = Object.values(state.components)
 				.filter(
@@ -881,7 +1052,7 @@ export const migrationComplete = tool({
 			page.completedAt = new Date().toISOString()
 
 			state.stats = computeStats(state)
-			await writeMigrationState(cwd, state)
+			await writeMigrationState(state)
 
 			yield {
 				status: "success",
@@ -962,8 +1133,7 @@ export const migrationSkip = tool({
 			message: `Skipping ${id}...`,
 		}
 
-		const cwd = process.cwd()
-		const state = await readMigrationState(cwd)
+		const state = await readMigrationState()
 
 		if (!state) {
 			yield {
@@ -986,7 +1156,7 @@ export const migrationSkip = tool({
 
 			updateDependencyReadiness(state)
 			state.stats = computeStats(state)
-			await writeMigrationState(cwd, state)
+			await writeMigrationState(state)
 
 			const newlyReady = Object.values(state.components)
 				.filter(

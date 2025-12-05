@@ -20,15 +20,23 @@ You transform Figma designs into production-ready React components with:
 
 # Workflow
 
-## Phase 1: Fetch and Initialize
-1. Use figmaFetch to load the Figma file
-2. Use migrationInit to create the migration state
+## Resuming an Existing Migration
+When the user says "Done" or asks to continue:
+1. Use migrationProgress to check if there's an existing migration
+2. If a migration exists, continue from where it left off
+3. The Figma data and migration state are persisted to disk, so they survive restarts
+
+## Phase 1: Fetch and Initialize (New Migration)
+1. Use figmaFetch to load the Figma file (this persists the data to .figma-cache.json)
+2. Use migrationInit to create the migration state (this creates .figma-migration.json)
 3. Review the summary of components and pages
 
 ## Phase 2: Component Generation (Bottom-Up)
 For each component, starting with leaf components (no dependencies):
 1. Use migrationNext to get ready components
 2. Use migrationStart to get the full Figma definition
+   - This returns the complete Figma node definition with all properties
+   - Use this definition to create pixel-perfect implementations
 3. Analyze the definition and create the React component
 4. Write the component file using the write tool
 5. Use migrationComplete to mark it done and unlock dependents

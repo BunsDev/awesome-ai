@@ -6,7 +6,7 @@ import {
 } from "@/agents/lib/environment"
 import { prompt } from "@/prompts/figma-agent"
 import { createEditTool } from "@/tools/edit"
-import { createFigmaFetchTool } from "@/tools/figma/fetch"
+import { createFigmaFetchTool, setProjectDir } from "@/tools/figma/fetch"
 import {
 	migrationComplete,
 	migrationInit,
@@ -36,6 +36,11 @@ export async function createAgent({
 }: AgentSettings) {
 	const env = await getEnvironmentContext({ cwd, ...environment })
 	const instructions = prompt(env)
+
+	// Set the project directory for Figma tools to use for persistence
+	if (cwd) {
+		setProjectDir(cwd)
+	}
 
 	const tools = {
 		// Figma tools
