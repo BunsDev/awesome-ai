@@ -3,7 +3,7 @@
 	"type": "registry:agent",
 	"title": "Coding Agent",
 	"description": "Coding Agent - an AI agent",
-	"dependencies": ["ai"],
+	"dependencies": ["ai@beta"],
 	"registryDependencies": [
 		"prompts:coding-agent",
 		"tools:bash",

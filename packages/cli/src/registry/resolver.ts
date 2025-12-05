@@ -2,12 +2,10 @@ import { createHash } from "crypto"
 import deepmerge from "deepmerge"
 import path from "path"
 import { z } from "zod"
+import type { Config } from "../schema"
 import { buildUrlAndHeadersForRegistryItem } from "./builder"
 import { setRegistryHeaders } from "./context"
-import {
-	RegistryNotConfiguredError,
-	RegistryParseError,
-} from "./errors"
+import { RegistryNotConfiguredError, RegistryParseError } from "./errors"
 import { fetchRegistry, fetchRegistryLocal } from "./fetcher"
 import { parseRegistryAndItemFromString } from "./parser"
 import {
@@ -17,7 +15,6 @@ import {
 	registryResolvedItemsTreeSchema,
 } from "./schema"
 import { isLocalFile, isUrl } from "./utils"
-import type { Config } from "../schema"
 
 const registryItemWithSourceSchema = registryItemSchema.extend({
 	_source: z.string().optional(),

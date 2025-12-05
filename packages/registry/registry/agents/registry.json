@@ -7,7 +7,7 @@
 			"type": "registry:agent",
 			"title": "Figma Agent",
 			"description": "Figma Agent - an AI agent",
-			"dependencies": ["ai"],
+			"dependencies": ["ai@beta"],
 			"registryDependencies": [
 				"prompts:figma-agent",
 				"tools:edit",
@@ -25,7 +25,7 @@
 			"type": "registry:agent",
 			"title": "Migration Planning Agent",
 			"description": "Migration Planning Agent - an AI agent",
-			"dependencies": ["ai"],
+			"dependencies": ["ai@beta"],
 			"registryDependencies": [
 				"prompts:migration-planning-agent",
 				"tools:bash",
@@ -41,7 +41,7 @@
 			"type": "registry:agent",
 			"title": "Migration Agent",
 			"description": "Migration Agent - an AI agent",
-			"dependencies": ["ai"],
+			"dependencies": ["ai@beta"],
 			"registryDependencies": [
 				"prompts:migration-agent",
 				"tools:bash",
@@ -59,7 +59,7 @@
 			"type": "registry:agent",
 			"title": "Research Agent",
 			"description": "Research Agent - an AI agent",
-			"dependencies": ["ai"],
+			"dependencies": ["ai@beta"],
 			"registryDependencies": [
 				"prompts:research-agent",
 				"tools:glob",
@@ -74,7 +74,7 @@
 			"type": "registry:agent",
 			"title": "Planning Agent",
 			"description": "Planning Agent - an AI agent",
-			"dependencies": ["ai"],
+			"dependencies": ["ai@beta"],
 			"registryDependencies": [
 				"prompts:planning-agent",
 				"tools:bash",
@@ -90,7 +90,7 @@
 			"type": "registry:agent",
 			"title": "Coding Agent",
 			"description": "Coding Agent - an AI agent",
-			"dependencies": ["ai"],
+			"dependencies": ["ai@beta"],
 			"registryDependencies": [
 				"prompts:coding-agent",
 				"tools:bash",

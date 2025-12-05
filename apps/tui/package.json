@@ -2,11 +2,13 @@
 	"name": "awesome-ai-tui",
 	"version": "0.1.0-beta.5",
 	"type": "module",
+	"author": "lfades (https://github.com/lfades)",
 	"publishConfig": {
 		"access": "public"
 	},
 	"files": [
-		"src"
+		"src",
+		"tsconfig.json"
 	],
 	"main": "./src/index.tsx",
 	"exports": {

@@ -1,5 +1,6 @@
 #!/usr/bin/env bun
 import { Command } from "commander"
+import packageJson from "../package.json"
 import { add } from "./commands/add"
 import { diff } from "./commands/diff"
 import { exec } from "./commands/exec"
@@ -9,7 +10,6 @@ import { migrate } from "./commands/migrate"
 import { run } from "./commands/run"
 import { search } from "./commands/search"
 import { view } from "./commands/view"
-import packageJson from "../package.json"
 
 process.on("SIGINT", () => process.exit(0))
 process.on("SIGTERM", () => process.exit(0))

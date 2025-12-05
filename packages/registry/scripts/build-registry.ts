@@ -30,6 +30,26 @@ async function loadNpmPackages(): Promise<Set<string>> {
 	return new Set(deps)
 }
 
+/**
+ * Version overrides for specific packages.
+ * Use this to pin to specific versions or tags (e.g., "beta" for pre-releases).
+ */
+const VERSION_OVERRIDES: Record<string, string> = {
+	ai: "beta",
+}
+
+/**
+ * Format dependency with version for output.
+ */
+function formatDependency(name: string): string {
+	const override = VERSION_OVERRIDES[name]
+	if (override) {
+		return `${name}@${override}`
+	}
+	// No version = npm resolves to latest
+	return name
+}
+
 // Zod schemas for validation
 const registryFileSchema = z.object({
 	path: z.string(),
@@ -230,11 +250,11 @@ async function processFile(
 	}
 
 	if (npmDeps.length > 0) {
-		item.dependencies = npmDeps
+		item.dependencies = npmDeps.map(formatDependency)
 	}
 
 	if (npmDevDeps.length > 0) {
-		item.devDependencies = npmDevDeps
+		item.devDependencies = npmDevDeps.map(formatDependency)
 	}
 
 	if (registryDeps.length > 0) {

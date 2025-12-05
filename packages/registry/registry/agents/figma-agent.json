@@ -3,7 +3,7 @@
 	"type": "registry:agent",
 	"title": "Figma Agent",
 	"description": "Figma Agent - an AI agent",
-	"dependencies": ["ai"],
+	"dependencies": ["ai@beta"],
 	"registryDependencies": [
 		"prompts:figma-agent",
 		"tools:edit",

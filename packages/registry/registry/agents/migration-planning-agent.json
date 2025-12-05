@@ -3,7 +3,7 @@
 	"type": "registry:agent",
 	"title": "Migration Planning Agent",
 	"description": "Migration Planning Agent - an AI agent",
-	"dependencies": ["ai"],
+	"dependencies": ["ai@beta"],
 	"registryDependencies": [
 		"prompts:migration-planning-agent",
 		"tools:bash",

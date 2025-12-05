@@ -1,15 +1,12 @@
 import type { z } from "zod"
+import type { Config } from "../schema"
 import { REGISTRY_URL } from "./constants"
 import { expandEnvVars } from "./env"
 import { RegistryNotConfiguredError } from "./errors"
 import { parseRegistryAndItemFromString } from "./parser"
-import type {
-	RegistryItemCategory,
-	registryConfigItemSchema,
-} from "./schema"
+import type { RegistryItemCategory, registryConfigItemSchema } from "./schema"
 import { isLocalFile, isUrl } from "./utils"
 import { validateRegistryConfig } from "./validator"
-import type { Config } from "../schema"
 
 const NAME_PLACEHOLDER = "{name}"
 const TYPE_PLACEHOLDER = "{type}"

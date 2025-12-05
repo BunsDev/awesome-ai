@@ -2,7 +2,6 @@ import { Command } from "commander"
 import path from "path"
 import prompts from "prompts"
 import { z } from "zod"
-import { runInit } from "./init"
 import { preFlightAdd } from "../preflights/preflight-add"
 import { clearRegistryContext } from "../registry/context"
 import { addItems } from "../utils/add-items"
@@ -12,6 +11,7 @@ import { createConfig, getConfig } from "../utils/get-config"
 import { handleError } from "../utils/handle-error"
 import { highlighter } from "../utils/highlighter"
 import { logger } from "../utils/logger"
+import { runInit } from "./init"
 
 export const addOptionsSchema = z.object({
 	items: z.array(z.string()).optional(),

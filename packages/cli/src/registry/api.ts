@@ -1,3 +1,4 @@
+import type { Config } from "../schema"
 import { buildUrlAndHeadersForRegistryItem } from "./builder"
 import { configWithDefaults } from "./config"
 import { clearRegistryContext } from "./context"
@@ -7,16 +8,9 @@ import {
 	RegistryParseError,
 } from "./errors"
 import { fetchRegistry } from "./fetcher"
-import {
-	fetchRegistryItems,
-	resolveRegistryTree,
-} from "./resolver"
-import {
-	type RegistryItemCategory,
-	registrySchema,
-} from "./schema"
+import { fetchRegistryItems, resolveRegistryTree } from "./resolver"
+import { type RegistryItemCategory, registrySchema } from "./schema"
 import { isUrl } from "./utils"
-import type { Config } from "../schema"
 
 export async function getRegistry(
 	name: string,

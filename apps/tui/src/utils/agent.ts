@@ -344,6 +344,14 @@ async function streamAgentResponse(messageAtom: MessageAtom): Promise<void> {
 
 		// Save chat after response completes
 		await saveCurrentChat()
+	} catch (error) {
+		// Clear streaming flag on error so "thinking..." disappears
+		const errorMsg = messageAtom.get()
+		messageAtom.set({
+			...errorMsg,
+			metadata: { timestamp: errorMsg.metadata?.timestamp ?? Date.now() },
+		})
+		throw error
 	} finally {
 		currentAbortController = null
 		currentStreamingMessageAtom = null
