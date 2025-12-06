@@ -2,11 +2,7 @@ import { useAtom } from "@lfades/atom"
 import type { KeyEvent, ScrollBoxRenderable } from "@opentui/core"
 import { useEffect, useRef } from "react"
 import { colors } from "../theme"
-import {
-	resetConversation,
-	startNewChat,
-	syncConversationMessages,
-} from "../utils/agent"
+import { startNewChat, syncConversationMessages } from "../utils/agent"
 import { saveWorkspaceSettings } from "../utils/settings"
 import { deleteChat, listChats, loadChat } from "../utils/storage"
 import {
