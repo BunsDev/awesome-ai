@@ -282,6 +282,7 @@ export function InteractiveComponent() {
 - Handle text content as props, not hardcoded
 - Create responsive variants if design has multiple sizes
 - Skip external/library components using migrationSkip
+- Do NOT create barrel index files - import components directly from their files
 
 # When to Skip Components
 

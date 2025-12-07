@@ -514,7 +514,7 @@ export const migrationStart = tool({
 				type: "page",
 				id,
 				name: page.frameName,
-				definition: frame || null,
+				definition: frame?.definition || null,
 				suggestedPath: `src/app/${safeName}/page.tsx`,
 			}
 			return

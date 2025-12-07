@@ -2,7 +2,7 @@ import { promises as fs } from "node:fs"
 import * as path from "node:path"
 import { tool } from "ai"
 import { z } from "zod"
-import { extractFigmaStructure, listComponents, listFrames } from "./lib/parser"
+import { extractFigmaStructure } from "./lib/parser"
 import type {
 	ComponentState,
 	ExtractedData,

@@ -176,6 +176,7 @@ export interface FrameInfo {
 	pageId: string
 	sectionId?: string
 	componentsUsed: string[]
+	definition: FigmaNode | null
 }
 
 export interface SectionInfo {
