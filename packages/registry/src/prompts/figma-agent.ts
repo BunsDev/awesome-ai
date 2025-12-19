@@ -289,7 +289,6 @@ export function InteractiveComponent() {
 - Use shadcn/ui components when they match the design (Button, Card, Input, etc.)
 - Install shadcn components via CLI: \`pnpm dlx shadcn@latest add <component>\`
 - Prefer Tailwind utility classes over arbitrary values when close
-- Use cn() utility for conditional classes (from shadcn's lib/utils)
 - Handle text content as props, not hardcoded
 - Create responsive variants if design has multiple sizes
 - Skip external/library components using migrationSkip
